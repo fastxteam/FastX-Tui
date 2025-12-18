@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "FastX TUI",
-    "version": "v3.0",
+    "version": "v0.1.0",
     "description": "Terminal Toolset",
     "author": "FastX Team",
     "welcome": "Welcome to {app_name} {version}",

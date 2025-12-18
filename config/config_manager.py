@@ -40,6 +40,7 @@ class AppConfig:
     language: str = "zh_CN"
     log_level: str = "INFO"
     enable_analytics: bool = False
+    show_welcome_page: bool = True  # 是否显示欢迎页面
 
 @dataclass
 class UserPreferences:

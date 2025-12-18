@@ -214,9 +214,9 @@ class MenuSystem:
         """清除屏幕"""
         os.system('cls' if sys.platform == 'win32' else 'clear')
 
-    def show_banner(self):
+    def show_banner(self, version=""):
         """显示横幅"""
-        banner = """
+        banner = f"""
 ╔═══════════════════════════════════════════════════════════════════════════╗═══════════════════════════════════════╗
 ║                                                                           ║                                       ║
 ║    ███████╗ █████╗ ███████╗████████╗██╗  ██╗     ████████╗██╗   ██╗██╗    ║      ███                              ║
@@ -226,7 +226,7 @@ class MenuSystem:
 ║    ██║     ██║  ██║███████║   ██║   ██╔╝ ██╗        ██║   ╚██████╔╝██║    ║      ███                              ║
 ║    ╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝        ╚═╝    ╚═════╝ ╚═╝    ║                                       ║
 ║                                                                           ║                                       ║
-║                   Terminal ToolSets For J6M('v3.0.0')                     ║                                       ║
+║                   Terminal ToolSets For MCU({version})                       ║                                       ║
 ║                                                                           ║                                       ║
 ║    Built with FastXTeam/TUI, Architect Developed By @wanqiang.liu         ║                                       ║
 ╚═══════════════════════════════════════════════════════════════════════════╝═══════════════════════════════════════╝

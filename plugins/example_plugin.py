@@ -5,9 +5,9 @@ from core.menu_system import MenuSystem, ActionItem, CommandType
 class ExamplePlugin(Plugin):
     def get_info(self) -> PluginInfo:
         return PluginInfo(
-            name="示例插件",
-            version="2.0.0",
-            author="开发者",
+            name="Demo Plugin",
+            version="0.1.0",
+            author="wanqiang.liu",
             description="这是一个展示动态菜单注册的示例插件"
         )
     

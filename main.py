@@ -5,7 +5,10 @@ FastX TUI - 基于pyi18n的国际化版本
 import os
 import sys
 import time
-from typing import List, Optional
+import json
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
+from typing import List, Optional, Dict, Any
 
 from rich.console import Console
 from rich.prompt import Prompt
@@ -74,8 +77,17 @@ class FastXPyI18nTUI:
         self.start_time = time.time()
         self.command_count = 0
 
+        # 版本检查相关
+        self.current_version = self.t("app.version")
+        self.latest_version = None
+        self.update_available = False
+        self.version_check_failed = False
+
         # 初始化系统
         self._init_system()
+        
+        # 检查版本更新
+        self._check_version_update()
 
     def t(self, key: str, default: str = None, **kwargs) -> str:
         """翻译文本的便捷方法"""
@@ -99,6 +111,42 @@ class FastXPyI18nTUI:
         # 只有当需要恢复的菜单不是主菜单时才导航，避免重复添加主菜单到历史记录
         if current_menu_id != "main_menu":
             self.menu_system.navigate_to_menu(current_menu_id)
+
+    def _check_version_update(self):
+        """检查GitHub上的版本更新"""
+        self.version_check_failed = False
+        try:
+            # GitHub API URL for latest release
+            api_url = "https://api.github.com/repos/fastxteam/FastX-Tui/releases/latest"
+            
+            # Create request with headers
+            req = Request(api_url)
+            req.add_header('User-Agent', 'FastX-Tui')
+            
+            # Send request to GitHub API
+            with urlopen(req, timeout=5) as response:
+                # Parse the JSON response
+                release_data = json.loads(response.read().decode('utf-8'))
+                latest_version = release_data.get("tag_name", "").lstrip("v")  # Remove 'v' prefix if present
+                
+                # Compare versions
+                if latest_version:
+                    self.latest_version = latest_version
+                    # Simple version comparison (major.minor.patch)
+                    current_parts = list(map(int, self.current_version.split(".")))
+                    latest_parts = list(map(int, latest_version.split(".")))
+                    
+                    # Ensure both version tuples have the same length
+                    max_length = max(len(current_parts), len(latest_parts))
+                    current_parts += [0] * (max_length - len(current_parts))
+                    latest_parts += [0] * (max_length - len(latest_parts))
+                    
+                    # Check if update is available
+                    self.update_available = latest_parts > current_parts
+                    
+        except (HTTPError, URLError, ValueError, IndexError, Exception):
+            # Set flag on any error
+            self.version_check_failed = True
 
     def _reinitialize_menus(self):
         """重新初始化菜单（使用新语言）"""
@@ -136,8 +184,11 @@ class FastXPyI18nTUI:
         # 应用用户偏好
         self._apply_user_preferences()
 
-        # 显示欢迎信息
-        self._show_welcome_message()
+        # 显示欢迎信息（根据配置决定）
+        if self.config_manager.get_config("show_welcome_page", True):
+            self._show_welcome_message()
+            # 等待用户确认后再进入主菜单
+            input(f"\n{self.t('app.confirm')}...")
 
     def _init_menu(self):
         """初始化菜单结构"""
@@ -377,7 +428,7 @@ class FastXPyI18nTUI:
         self.menu_system.clear_screen()
 
         # 显示横幅
-        self.menu_system.show_banner()
+        self.menu_system.show_banner(version=self.current_version)
 
         # 显示版本信息
         self.console.print("\n" + "=" * 70, style="cyan")
@@ -403,9 +454,6 @@ class FastXPyI18nTUI:
         self.console.print(f"  • {self.t('hint.exit')} - {self.t('app.exit')}")
 
         self.console.print("\n" + "─" * 70, style="dim")
-        self.console.print(f"[yellow]{self.t('app.confirm')}...[/yellow]")
-        # 自动继续，无需等待用户输入
-        print()  # 输出空行保持格式一致
 
     def show_language_interface(self):
         """显示语言切换界面"""
@@ -744,7 +792,7 @@ class FastXPyI18nTUI:
 
         # 显示横幅
         if self.config_manager.get_config("show_banner", True):
-            self.menu_system.show_banner()
+            self.menu_system.show_banner(version=self.current_version)
 
         # 显示当前菜单
         self.menu_system.show_current_menu()
@@ -796,6 +844,17 @@ class FastXPyI18nTUI:
         # 添加日志级别
         current_log_level = get_current_log_level()
         status_bar.append(f"📋: {current_log_level}")
+        
+        # 添加版本更新信息
+        if self.version_check_failed:
+            # 版本检查失败 - 红色圆点
+            status_bar.append(f"📦 {self.current_version} [red]●[/red]")
+        elif self.update_available and self.latest_version:
+            # 有更新 - 绿色圆点
+            status_bar.append(f"� {self.current_version} [green]●[/green]")
+        else:
+            # 最新版本 - 绿色圆点
+            status_bar.append(f"📦 {self.current_version} [green]●[/green]")
 
         # 构建当前位置路径
         path_parts = []
