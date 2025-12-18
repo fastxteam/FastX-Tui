@@ -17,10 +17,11 @@ class AppConfig:
     show_hints: bool = True
     show_icons: bool = True
     animation_enabled: bool = True
+    banner_style: str = "default"  # default, gradient
     
     # 行为设置
     auto_clear_screen: bool = True
-    confirm_exit: bool = True
+    confirm_exit: bool = False
     confirm_dangerous_commands: bool = True
     
     # 性能设置

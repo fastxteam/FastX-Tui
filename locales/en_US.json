@@ -98,7 +98,21 @@
     "export": "Export Config",
     "export_desc": "Export current configuration to file",
     "import": "Import Config",
-    "import_desc": "Import configuration from file"
+    "import_desc": "Import configuration from file",
+    "banner_style": "Banner Style",
+    "set_to": "Set to",
+    "advanced": "Advanced Settings",
+    "advanced_settings": "Advanced Settings",
+    "show_welcome": "Show Welcome Page",
+    "auto_check_updates": "Auto Check Updates",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "reset_confirm": "Are you sure you want to reset all configurations? (y/N)",
+    "reset_canceled": "Reset operation canceled",
+    "export_prompt": "Please enter export filename:",
+    "import_prompt": "Please enter import filename:",
+    "export_failed": "Failed to export configuration",
+    "import_failed": "Failed to import configuration"
   },
   "language": {
     "changed": "Language changed: {old} → {new}",
@@ -138,7 +152,17 @@
     "view_directory": "View Plugin Directory",
     "loaded_plugins": "Loaded Plugins",
     "operations": "Plugin Operations",
-    "back_menu": "Back to Menu"
+    "back_menu": "Back to Menu",
+    "no_plugins": "No plugins available",
+    "loading": "Loading plugins...",
+    "reloaded": "Plugins reloaded",
+    "reload_success": "Successfully reloaded {count} plugins",
+    "refresh_info": {
+      "discovered": "Discovered plugins",
+      "loaded": "Loaded plugins"
+    },
+    "directory_empty": "Plugin directory is empty",
+    "directory_not_exists": "Plugin directory does not exist"
   },
   "hint": {
     "shortcuts": "Shortcuts",
@@ -156,14 +180,16 @@
     "command_failed": "Command execution failed",
     "command_timeout": "Command execution timeout",
     "plugin_load": "Plugin load failed",
-    "config_load": "Configuration load failed"
+    "config_load": "Configuration load failed",
+    "no_items": "No items available in this menu"
   },
   "success": {
     "command": "Command executed successfully",
     "config_saved": "Configuration saved",
     "plugin_loaded": "Plugin loaded successfully",
     "exported": "Exported successfully",
-    "imported": "Imported successfully"
+    "imported": "Imported successfully",
+    "theme_switched": "Theme switched to {theme}"
   },
   "help": {
     "title": "Usage Instructions",
@@ -197,5 +223,10 @@
     "size_kb": "KB",
     "size_mb": "MB",
     "size_gb": "GB"
+  },
+  "theme": {
+    "available": "Available Themes",
+    "select_prompt": "Please select a theme (1-{count}):",
+    "switched": "Theme switched"
   }
 }

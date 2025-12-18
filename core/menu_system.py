@@ -12,6 +12,8 @@ from enum import Enum
 from rich.console import Console
 from rich.table import Table
 from rich import box
+from rich.text import Text
+from rich.color import parse_rgb_hex
 
 
 class MenuType(Enum):
@@ -217,7 +219,29 @@ class MenuSystem:
         """清除屏幕"""
         os.system('cls' if sys.platform == 'win32' else 'clear')
 
-    def show_banner(self, version=""):
+    def _print_with_gradient(self, lines: List[str], colors: List[str]):
+        """使用渐变效果打印文本"""
+        r1, g1, b1 = parse_rgb_hex(colors[0].lstrip('#'))
+        r2, g2, b2 = parse_rgb_hex(colors[1].lstrip('#'))
+
+        for line in lines:
+            main_text = Text()
+            if not line:  # 跳过空行
+                self.console.print()
+                continue
+                
+            for j, char in enumerate(line):
+                if char != ' ':
+                    ratio = j / (len(line) - 1) if len(line) > 1 else 0
+                    r = int(r1 + (r2 - r1) * ratio)
+                    g = int(g1 + (g2 - g1) * ratio)
+                    b = int(b1 + (b2 - b1) * ratio)
+                    main_text.append(char, style=f"bold rgb({r},{g},{b})")
+                else:
+                    main_text.append(char)
+            self.console.print(main_text)
+
+    def show_banner(self, version="", banner_style="gradient"):
         """显示横幅"""
         banner = f"""
 ╔═════════════════════════════════════════════════════════════════════════╗════════════════════════════════════════════╗
@@ -234,7 +258,15 @@ class MenuSystem:
 ║   Built with FastXTeam/TUI, Architect Developed By @wanqiang.liu        ║ https://github.com/fastxteam/FastX-Tui.git ║
 ╚═════════════════════════════════════════════════════════════════════════╝════════════════════════════════════════════╝
         """
-        self.console.print(banner, style="cyan")
+        
+        if banner_style == "gradient":
+            # 转换横幅为行列表
+            banner_lines = banner.strip().split('\n')
+            main_colors = ["#00ffff", "#ff00ff"]
+            self._print_with_gradient(banner_lines, main_colors)
+        else:
+            # 默认样式
+            self.console.print(banner, style="cyan")
 
     def get_icon(self, item_type: str, default: str = '▶') -> str:
         """获取图标，确保宽度一致"""
@@ -305,9 +337,10 @@ class MenuSystem:
         """显示快捷键提示"""
         hints = []
 
-        # 导航提示 - 统一使用0返回上一级
+        # 导航提示 - 统一使用0返回上一级，b返回主菜单
         if self.current_menu and self.current_menu.menu_type != MenuType.MAIN:
             hints.append(f"0:{self.t('hint.back', '返回上级')}")
+            hints.append(f"b:{self.t('app.back_main', '返回主菜单')}")
         else:
             hints.append(f"q:{self.t('hint.exit', '退出')}")
 

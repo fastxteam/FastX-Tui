@@ -98,7 +98,21 @@
     "export": "导出配置",
     "export_desc": "导出当前配置到文件",
     "import": "导入配置",
-    "import_desc": "从文件导入配置"
+    "import_desc": "从文件导入配置",
+    "banner_style": "横幅样式",
+    "set_to": "已设置为",
+    "advanced": "高级设置",
+    "advanced_settings": "高级设置",
+    "show_welcome": "显示欢迎页面",
+    "auto_check_updates": "自动检查更新",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "reset_confirm": "确定要重置所有配置吗？(y/N)",
+    "reset_canceled": "重置操作已取消",
+    "export_prompt": "请输入导出文件名:",
+    "import_prompt": "请输入导入文件名:",
+    "export_failed": "导出配置失败",
+    "import_failed": "导入配置失败"
   },
   "language": {
     "changed": "语言已切换: {old} → {new}",
@@ -138,7 +152,17 @@
     "view_directory": "查看插件目录",
     "loaded_plugins": "已加载插件",
     "operations": "插件操作",
-    "back_menu": "返回菜单"
+    "back_menu": "返回菜单",
+    "no_plugins": "暂无可用插件",
+    "loading": "正在加载插件...",
+    "reloaded": "插件已重新加载",
+    "reload_success": "成功重新加载了 {count} 个插件",
+    "refresh_info": {
+      "discovered": "已发现的插件",
+      "loaded": "已加载的插件"
+    },
+    "directory_empty": "插件目录为空",
+    "directory_not_exists": "插件目录不存在"
   },
   "hint": {
     "shortcuts": "快捷键",
@@ -156,14 +180,16 @@
     "command_failed": "命令执行失败",
     "command_timeout": "命令执行超时",
     "plugin_load": "插件加载失败",
-    "config_load": "配置加载失败"
+    "config_load": "配置加载失败",
+    "no_items": "此菜单当前没有可用的项目"
   },
   "success": {
     "command": "命令执行成功",
     "config_saved": "配置已保存",
     "plugin_loaded": "插件加载成功",
     "exported": "导出成功",
-    "imported": "导入成功"
+    "imported": "导入成功",
+    "theme_switched": "主题已切换为 {theme}"
   },
   "help": {
     "title": "使用说明",
@@ -197,5 +223,10 @@
     "size_kb": "{kb:.1f} KB",
     "size_mb": "{mb:.1f} MB",
     "size_gb": "{gb:.1f} GB"
+  },
+  "theme": {
+    "available": "可用主题",
+    "select_prompt": "请选择主题 (1-{count}):",
+    "switched": "主题已切换"
   }
 }

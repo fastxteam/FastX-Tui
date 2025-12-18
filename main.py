@@ -10,6 +10,13 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 from typing import List, Optional, Dict, Any
 
+# 导入按键获取模块（跨平台）
+if sys.platform == 'win32':
+    import msvcrt
+else:
+    import termios
+    import tty
+
 from rich.console import Console
 from rich.prompt import Prompt
 from rich.table import Table
@@ -454,7 +461,8 @@ class FastXPyI18nTUI:
         self.menu_system.clear_screen()
 
         # 显示横幅
-        self.menu_system.show_banner(version=self.current_version)
+        banner_style = self.config_manager.get_config("banner_style", "default")
+        self.menu_system.show_banner(version=self.current_version, banner_style=banner_style)
 
         # 显示版本信息
         self.console.print("\n" + "=" * 70, style="cyan")
@@ -515,6 +523,8 @@ class FastXPyI18nTUI:
             choice = Prompt.ask(f"[bold cyan]{self.t('app.confirm')}[/bold cyan]")
 
             if choice.lower() == 'b':
+                # 返回主菜单
+                self.menu_system.clear_screen()
                 break
 
             elif choice.lower() == 'r':
@@ -577,6 +587,8 @@ class FastXPyI18nTUI:
             choice = Prompt.ask(f"[bold cyan]{self.t('app.confirm')}[/bold cyan]")
 
             if choice == 'b':
+                # 返回主菜单
+                self.menu_system.go_to_root()
                 break
             elif choice == 'q':
                 self.handle_exit()
@@ -668,11 +680,13 @@ class FastXPyI18nTUI:
             # 获取当前设置
             show_welcome = self.config_manager.get_config("show_welcome_page", True)
             auto_check_updates = self.config_manager.get_config("auto_check_updates", True)
+            banner_style = self.config_manager.get_config("banner_style", "default")
             
             # 显示高级设置选项
             self.console.print(f"📋 {self.t('config.advanced_settings')}:")
             self.console.print(f"1. {self.t('config.show_welcome')}: {'✅' if show_welcome else '❌'}")
             self.console.print(f"2. {self.t('config.auto_check_updates')}: {'✅' if auto_check_updates else '❌'}")
+            self.console.print(f"3. {self.t('config.banner_style')}: {banner_style}")
             self.console.print()
             self.console.print(f"b. {self.t('app.back')}")
             self.console.print(f"q. {self.t('app.exit')}")
@@ -698,6 +712,12 @@ class FastXPyI18nTUI:
                 self.config_manager.set_config("auto_check_updates", new_value)
                 status = self.t('config.enabled') if new_value else self.t('config.disabled')
                 self.console.print(f"\n✅ {self.t('config.auto_check_updates')} {status}")
+                input(f"\n{self.t('app.continue')}")
+            elif choice == '3':
+                # 切换横幅样式
+                new_style = "gradient" if banner_style == "default" else "default"
+                self.config_manager.set_config("banner_style", new_style)
+                self.console.print(f"\n✅ {self.t('config.banner_style')} {self.t('config.set_to')} {new_style}")
                 input(f"\n{self.t('app.continue')}")
             else:
                 self.console.print(f"[red]❌ {self.t('error.invalid_choice')}[/red]")
@@ -866,7 +886,8 @@ class FastXPyI18nTUI:
 
         # 显示横幅
         if self.config_manager.get_config("show_banner", True):
-            self.menu_system.show_banner(version=self.current_version)
+            banner_style = self.config_manager.get_config("banner_style", "default")
+            self.menu_system.show_banner(version=self.current_version, banner_style=banner_style)
         
         # 显示版本更新提示（如果有更新）
         self._show_update_prompt()
@@ -927,8 +948,8 @@ class FastXPyI18nTUI:
             # 版本检查失败 - 红色圆点
             status_bar.append(f"📦: {self.current_version} [red]⚡[/red]")
         elif self.update_available and self.latest_version:
-            # 有更新 - 绿色圆点
-            status_bar.append(f"📦: {self.current_version} [yellow]⚡[/yellow]")
+            # 有更新 - 黄色圆点并显示新版本号
+            status_bar.append(f"📦: {self.current_version} → {self.latest_version} [yellow]⚡[/yellow]")
         else:
             # 最新版本 - 绿色圆点
             status_bar.append(f"📦: {self.current_version} [green]⚡[/green]")
@@ -1167,6 +1188,20 @@ class FastXPyI18nTUI:
                 self.console.print(f"[red]❌ {self.t('error.invalid_input')}[/red]")
                 input(f"\n{self.t('app.back')}...")
 
+    def _get_char(self):
+        """获取单个按键（跨平台）"""
+        if sys.platform == 'win32':
+            return msvcrt.getch().decode('utf-8')
+        else:
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
+            try:
+                tty.setraw(sys.stdin.fileno())
+                ch = sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            return ch
+
     def show_logs(self):
         """显示日志内容"""
         log_file = "logs/fastx.log"
@@ -1190,7 +1225,7 @@ class FastXPyI18nTUI:
             return
         
         # 显示日志界面
-        page_size = 20
+        page_size = 500
         current_page = 0
         total_pages = (len(logs) + page_size - 1) // page_size
         
@@ -1230,21 +1265,26 @@ class FastXPyI18nTUI:
             
             # 显示操作选项
             self.console.print("\n" + "─" * 70, style="dim")
-            self.console.print(f"  n. {self.t('logger.next_page')}")
-            self.console.print(f"  p. {self.t('logger.prev_page')}")
-            self.console.print(f"  b. {self.t('app.back')}")
+            self.console.print(f"  [bold cyan]n[/bold cyan] - {self.t('logger.next_page')} | [bold cyan]p[/bold cyan] - {self.t('logger.prev_page')} | [bold cyan]b[/bold cyan] - {self.t('app.back')}")
+            self.console.print(f"  [dim]{self.t('logger.press_key')}[/dim]")
             
-            choice = Prompt.ask(f"[bold cyan]{self.t('app.confirm')}[/bold cyan]")
+            choice = self._get_char().lower()
             
-            if choice.lower() == 'b':
+            if choice == 'b':
                 break
-            elif choice.lower() == 'n' and current_page < total_pages - 1:
+            elif choice == 'n' and current_page < total_pages - 1:
                 current_page += 1
-            elif choice.lower() == 'p' and current_page > 0:
+            elif choice == 'p' and current_page > 0:
                 current_page -= 1
-            else:
-                self.console.print(f"[red]❌ {self.t('error.invalid_choice')}[/red]")
-                input(f"\n{self.t('app.back')}...")
+            # 支持方向键导航
+            elif choice == '\x1b':  # ESC 序列开始
+                second_char = self._get_char()
+                if second_char == '[':
+                    third_char = self._get_char()
+                    if third_char == 'B' and current_page < total_pages - 1:  # 下箭头
+                        current_page += 1
+                    elif third_char == 'A' and current_page > 0:  # 上箭头
+                        current_page -= 1
 
     def show_help(self):
         """显示帮助信息"""
