@@ -7,7 +7,9 @@ import platform
 import socket
 import json
 import time
-from typing import Dict, List
+import urllib.request
+import urllib.error
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 from core.plugin_manager import Plugin, PluginInfo
 from core.menu_system import MenuSystem, ActionItem, CommandType
@@ -396,3 +398,83 @@ class NetworkToolsPlugin(Plugin):
             info.append(f"\n❌ 获取网络信息出错: {str(e)}")
         
         return "\n".join(info)
+    
+    def check_github_version(self, current_version: str, repo: str = "fastxteam/FastX-Tui") -> Dict:
+        """检查GitHub上的最新版本"""
+        url = f"https://api.github.com/repos/{repo}/releases/latest"
+        
+        try:
+            # 创建请求对象
+            req = urllib.request.Request(url)
+            req.add_header('User-Agent', 'FastX-Tui')
+            
+            # 发送请求
+            with urllib.request.urlopen(req, timeout=5) as response:
+                # 读取并解析响应
+                data = json.loads(response.read().decode())
+                
+                # 提取版本信息
+                latest_version = data.get('tag_name', '').lstrip('v')
+                release_url = data.get('html_url', '')
+                release_notes = data.get('body', '')
+                
+                # 比较版本
+                is_update_available = self._compare_versions(current_version, latest_version)
+                
+                return {
+                    'success': True,
+                    'current_version': current_version,
+                    'latest_version': latest_version,
+                    'update_available': is_update_available,
+                    'release_url': release_url,
+                    'release_notes': release_notes
+                }
+                
+        except urllib.error.URLError as e:
+            self.log_error(f"GitHub版本检查失败: 网络错误 - {str(e)}")
+            return {
+                'success': False,
+                'error': f"网络错误: {str(e)}",
+                'update_available': False
+            }
+        except json.JSONDecodeError as e:
+            self.log_error(f"GitHub版本检查失败: JSON解析错误 - {str(e)}")
+            return {
+                'success': False,
+                'error': f"JSON解析错误: {str(e)}",
+                'update_available': False
+            }
+        except Exception as e:
+            self.log_error(f"GitHub版本检查失败: 未知错误 - {str(e)}")
+            return {
+                'success': False,
+                'error': f"未知错误: {str(e)}",
+                'update_available': False
+            }
+    
+    def _compare_versions(self, current: str, latest: str) -> bool:
+        """比较版本号，返回是否需要更新"""
+        if not current or not latest:
+            return False
+            
+        # 移除前缀v
+        current = current.lstrip('v')
+        latest = latest.lstrip('v')
+        
+        # 分割版本号
+        current_parts = list(map(int, current.split('.')))
+        latest_parts = list(map(int, latest.split('.')))
+        
+        # 补全版本号长度
+        max_len = max(len(current_parts), len(latest_parts))
+        current_parts += [0] * (max_len - len(current_parts))
+        latest_parts += [0] * (max_len - len(latest_parts))
+        
+        # 比较版本号
+        for current_part, latest_part in zip(current_parts, latest_parts):
+            if latest_part > current_part:
+                return True
+            elif latest_part < current_part:
+                return False
+        
+        return False

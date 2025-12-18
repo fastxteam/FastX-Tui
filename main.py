@@ -15,7 +15,10 @@ from rich.prompt import Prompt
 from rich.table import Table
 from rich.layout import Layout
 from rich.text import Text
+from rich.panel import Panel
 from rich import box
+
+from core.logger import get_logger
 
 from core.menu_system import (
     MenuSystem, MenuNode, ActionItem, MenuType, CommandType
@@ -25,6 +28,7 @@ from core.plugin_manager import PluginManager
 from core.logger import (
     get_current_log_level, set_log_level, get_available_log_levels
 )
+from core.network_tools import NetworkToolsPlugin
 from features.search import SearchFeature
 from config.config_manager import ConfigManager, UserPreferences
 from locales.pyi18n_manager import PyI18nLocaleManager, LanguageInfo
@@ -36,6 +40,9 @@ class FastXPyI18nTUI:
     def __init__(self):
         # 初始化控制台
         self.console = Console()
+
+        # 初始化日志
+        self.logger = get_logger(self.__class__.__name__)
 
         # 初始化配置管理器
         self.config_manager = ConfigManager()
@@ -62,6 +69,10 @@ class FastXPyI18nTUI:
         self.plugin_manager = PluginManager(
             self.config_manager.get_config("plugin_directory", "plugins")
         )
+
+        # 初始化网络工具插件（用于版本检查）
+        self.network_tools = NetworkToolsPlugin()
+        self.network_tools.initialize()
 
         # 初始化搜索功能
         self.search_feature = SearchFeature(self.menu_system, self.console, self.config_manager)
@@ -117,37 +128,49 @@ class FastXPyI18nTUI:
         """检查GitHub上的版本更新"""
         self.version_check_failed = False
         try:
-            # GitHub API URL for latest release
-            api_url = "https://api.github.com/repos/fastxteam/FastX-Tui/releases/latest"
+            # 调试信息
+            self.logger.debug(f"当前版本: {self.current_version}")
+            self.logger.debug(f"自动检查更新设置: {self.config_manager.get_config('auto_check_updates', True)}")
             
-            # Create request with headers
-            req = Request(api_url)
-            req.add_header('User-Agent', 'FastX-Tui')
+            # 使用网络工具插件检查版本更新
+            result = self.network_tools.check_github_version(
+                current_version=self.current_version.lstrip('v'),
+                repo="fastxteam/FastX-Tui"
+            )
             
-            # Send request to GitHub API
-            with urlopen(req, timeout=5) as response:
-                # Parse the JSON response
-                release_data = json.loads(response.read().decode('utf-8'))
-                latest_version = release_data.get("tag_name", "").lstrip("v")  # Remove 'v' prefix if present
-                
-                # Compare versions
-                if latest_version:
-                    self.latest_version = latest_version
-                    # Simple version comparison (major.minor.patch)
-                    current_parts = list(map(int, self.current_version.split(".")))
-                    latest_parts = list(map(int, latest_version.split(".")))
-                    
-                    # Ensure both version tuples have the same length
-                    max_length = max(len(current_parts), len(latest_parts))
-                    current_parts += [0] * (max_length - len(current_parts))
-                    latest_parts += [0] * (max_length - len(latest_parts))
-                    
-                    # Check if update is available
-                    self.update_available = latest_parts > current_parts
-                    
-        except (HTTPError, URLError, ValueError, IndexError, Exception):
+            self.logger.debug(f"版本检查结果: {result}")
+            
+            if result['success']:
+                self.latest_version = result['latest_version']
+                self.update_available = result['update_available']
+            else:
+                self.version_check_failed = True
+                self.logger.debug(f"版本检查失败: {result.get('error', '未知错误')}")
+        except Exception:
             # Set flag on any error
             self.version_check_failed = True
+    
+    def _show_update_prompt(self):
+        """显示版本更新提示"""
+        if self.update_available and self.latest_version:
+            current_version = self.current_version.lstrip('v')
+            latest_version = self.latest_version
+            
+            # 创建格式化的更新消息
+            update_message = Text.from_markup(
+                f"[#F9E2AF]FastX-Tui update available! {current_version} -> {latest_version}[/#F9E2AF]\n"
+                f"[#F9E2AF]Check the latest release at: https://github.com/fastxteam/FastX-Tui/releases/latest[/#F9E2AF]"
+            )
+            
+            # 使用Panel显示更新消息
+            self.console.print(
+                Panel(
+                    update_message,
+                    border_style="#F9E2AF",
+                    expand=True,
+                    width=120
+                )
+            )
 
     def _reinitialize_menus(self):
         """重新初始化菜单（使用新语言）"""
@@ -844,6 +867,9 @@ class FastXPyI18nTUI:
         # 显示横幅
         if self.config_manager.get_config("show_banner", True):
             self.menu_system.show_banner(version=self.current_version)
+        
+        # 显示版本更新提示（如果有更新）
+        self._show_update_prompt()
 
         # 显示当前菜单
         self.menu_system.show_current_menu()
@@ -922,7 +948,7 @@ class FastXPyI18nTUI:
         
         # 构建完整的状态栏（左侧：当前位置，右侧：状态信息）
         # 计算左侧和右侧的宽度，确保总宽度为120
-        total_width = 120
+        total_width = 160
         left_text = f"[dim] > {current_path}[/dim]"
         right_text = status_text
         

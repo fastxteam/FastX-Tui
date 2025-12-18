@@ -34,6 +34,7 @@ jobs:
           import toml
           import json
           import os
+          import subprocess
           
           # Read current version from pyproject.toml
           with open('pyproject.toml', 'r') as f:
@@ -42,13 +43,31 @@ jobs:
           current_version = data['project']['version']
           print(f"Current version: {current_version}")
           
-          # Split version into parts
-          major, minor, patch = map(int, current_version.split('.'))
-          
-          # Increment patch version
-          patch += 1
-          new_version = f"{major}.{minor}.{patch}"
-          print(f"New version: {new_version}")
+          # Get the latest tag from remote to avoid conflicts
+          try:
+              subprocess.run(['git', 'fetch', '--tags'], check=True)
+              latest_tag = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0'], text=True).strip()
+              if latest_tag.startswith('v'):
+                  latest_tag = latest_tag[1:]
+              print(f"Latest remote tag version: {latest_tag}")
+              
+              # Use the latest tag version if it's newer than the current version
+              if latest_tag > current_version:
+                  print(f"Remote tag version {latest_tag} is newer than current version {current_version}")
+                  new_version = latest_tag
+              else:
+                  # Split version into parts and increment patch version
+                  major, minor, patch = map(int, current_version.split('.'))
+                  patch += 1
+                  new_version = f"{major}.{minor}.{patch}"
+                  print(f"New version: {new_version}")
+          except Exception as e:
+              print(f"Error fetching remote tags: {e}")
+              # Fallback to local version increment
+              major, minor, patch = map(int, current_version.split('.'))
+              patch += 1
+              new_version = f"{major}.{minor}.{patch}"
+              print(f"Fallback to new version: {new_version}")
           
           # Update pyproject.toml
           data['project']['version'] = new_version
