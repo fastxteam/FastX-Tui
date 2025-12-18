@@ -1,0 +1,95 @@
+name: Bump Version
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install toml
+      
+      - name: Bump version
+        id: bump_version
+        run: |
+          import toml
+          import json
+          import os
+          
+          # Read current version from pyproject.toml
+          with open('pyproject.toml', 'r') as f:
+              data = toml.load(f)
+          
+          current_version = data['project']['version']
+          print(f"Current version: {current_version}")
+          
+          # Split version into parts
+          major, minor, patch = map(int, current_version.split('.'))
+          
+          # Increment patch version
+          patch += 1
+          new_version = f"{major}.{minor}.{patch}"
+          print(f"New version: {new_version}")
+          
+          # Update pyproject.toml
+          data['project']['version'] = new_version
+          with open('pyproject.toml', 'w') as f:
+              toml.dump(data, f)
+          
+          # Update version in all language files
+          locales_dir = 'locales'
+          for file_name in os.listdir(locales_dir):
+              if file_name.endswith('.json'):
+                  file_path = os.path.join(locales_dir, file_name)
+                  with open(file_path, 'r', encoding='utf-8') as f:
+                      lang_data = json.load(f)
+                  
+                  if 'app' in lang_data and 'version' in lang_data['app']:
+                      lang_data['app']['version'] = f"v{new_version}"
+                      with open(file_path, 'w', encoding='utf-8') as f:
+                          json.dump(lang_data, f, indent=2, ensure_ascii=False, sort_keys=False)
+                      print(f"Updated version in {file_path}")
+          
+          # Output new version for next steps
+          print(f"::set-output name=new_version::{new_version}")
+        shell: python
+      
+      - name: Commit and push version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          git commit -m "Bump version to v${{ steps.bump_version.outputs.new_version }}"
+          git push origin main
+      
+      - name: Create tag
+        id: create_tag
+        run: |
+          tag_name="v${{ steps.bump_version.outputs.new_version }}"
+          git tag $tag_name
+          git push origin $tag_name
+          echo "::set-output name=tag_name::$tag_name"
+      
+      - name: Print results
+        run: |
+          echo "New version: ${{ steps.bump_version.outputs.new_version }}"
+          echo "New tag: ${{ steps.create_tag.outputs.tag_name }}"
