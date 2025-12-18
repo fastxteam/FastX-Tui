@@ -1,0 +1,12 @@
+{
+  "app": {
+    "name": "FastX TUI",
+    "description": "ターミナルツールセット",
+    "exit": "終了",
+    "help": "ヘルプ"
+  },
+  "menu": {
+    "main": "メインメニュー",
+    "system": "システムツール"
+  }
+}

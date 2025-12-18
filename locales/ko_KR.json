@@ -1,0 +1,12 @@
+{
+  "app": {
+    "name": "FastX TUI",
+    "description": "터미널 도구 모음",
+    "exit": "종료",
+    "help": "도움말"
+  },
+  "menu": {
+    "main": "메인 메뉴",
+    "system": "시스템 도구"
+  }
+}

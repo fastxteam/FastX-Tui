@@ -1,0 +1,19 @@
+{
+  "show_banner": true,
+  "show_hints": true,
+  "show_icons": true,
+  "animation_enabled": true,
+  "auto_clear_screen": false,
+  "confirm_exit": true,
+  "confirm_dangerous_commands": true,
+  "command_timeout": 30,
+  "max_history_items": 50,
+  "max_search_results": 20,
+  "theme": "default",
+  "color_scheme": "auto",
+  "plugin_auto_load": true,
+  "plugin_directory": "plugins",
+  "language": "zh_CN",
+  "log_level": "INFO",
+  "enable_analytics": false
+}
