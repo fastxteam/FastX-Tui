@@ -195,6 +195,7 @@ class MenuSystem:
             if self.current_menu:
                 self.menu_history.append(self.current_menu)
             self.current_menu = menu
+            self.clear_screen()  # 清除屏幕显示新菜单
             return True
         return False
 
@@ -202,6 +203,7 @@ class MenuSystem:
         """返回上一级菜单"""
         if self.menu_history:
             self.current_menu = self.menu_history.pop()
+            self.clear_screen()  # 清除屏幕显示上一级菜单
             return True
         return False
 
@@ -209,6 +211,7 @@ class MenuSystem:
         """返回主菜单"""
         while self.go_back():
             pass
+        self.clear_screen()  # 清除屏幕显示主菜单
 
     def clear_screen(self):
         """清除屏幕"""
@@ -226,7 +229,7 @@ class MenuSystem:
 ║    ██║     ██║  ██║███████║   ██║   ██╔╝ ██╗        ██║   ╚██████╔╝██║    ║      ███                              ║
 ║    ╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝        ╚═╝    ╚═════╝ ╚═╝    ║                                       ║
 ║                                                                           ║                                       ║
-║                   Terminal ToolSets For MCU({version})                       ║                                       ║
+║                   Terminal ToolSets For MCU                               ║                                       ║
 ║                                                                           ║                                       ║
 ║    Built with FastXTeam/TUI, Architect Developed By @wanqiang.liu         ║                                       ║
 ╚═══════════════════════════════════════════════════════════════════════════╝═══════════════════════════════════════╝

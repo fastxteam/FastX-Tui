@@ -19,7 +19,7 @@ class AppConfig:
     animation_enabled: bool = True
     
     # 行为设置
-    auto_clear_screen: bool = False
+    auto_clear_screen: bool = True
     confirm_exit: bool = True
     confirm_dangerous_commands: bool = True
     
@@ -41,6 +41,7 @@ class AppConfig:
     log_level: str = "INFO"
     enable_analytics: bool = False
     show_welcome_page: bool = True  # 是否显示欢迎页面
+    auto_check_updates: bool = True  # 是否自动检查版本更新
 
 @dataclass
 class UserPreferences:
@@ -264,6 +265,9 @@ class ConfigManager:
         info.append(f"  语言: {self.config.language}")
         info.append(f"  命令超时: {self.config.command_timeout}秒")
         info.append(f"  自动加载插件: {'是' if self.config.plugin_auto_load else '否'}")
+        info.append(f"  显示欢迎页面: {'是' if self.config.show_welcome_page else '否'}")
+        info.append(f"  自动检查更新: {'是' if self.config.auto_check_updates else '否'}")
+        info.append(f"  自动清屏: {'是' if self.config.auto_clear_screen else '否'}")
         
         # 显示用户偏好
         info.append(f"\n👤 用户偏好:")

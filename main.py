@@ -86,8 +86,9 @@ class FastXPyI18nTUI:
         # 初始化系统
         self._init_system()
         
-        # 检查版本更新
-        self._check_version_update()
+        # 根据配置检查版本更新
+        if self.config_manager.get_config("auto_check_updates", True):
+            self._check_version_update()
 
     def t(self, key: str, default: str = None, **kwargs) -> str:
         """翻译文本的便捷方法"""
@@ -189,6 +190,8 @@ class FastXPyI18nTUI:
             self._show_welcome_message()
             # 等待用户确认后再进入主菜单
             input(f"\n{self.t('app.confirm')}...")
+            # 清除屏幕，进入主菜单
+            self.menu_system.clear_screen()
 
     def _init_menu(self):
         """初始化菜单结构"""
@@ -536,9 +539,10 @@ class FastXPyI18nTUI:
                 ("1", self.t("config.view"), self._show_current_config),
                 ("2", self.t("config.theme"), self._change_theme),
                 ("3", self.t("config.language"), self.show_language_interface),
-                ("4", self.t("config.reset"), self._reset_config),
-                ("5", self.t("config.export"), self._export_config),
-                ("6", self.t("config.import"), self._import_config),
+                ("4", self.t("config.advanced"), self._show_advanced_settings),
+                ("5", self.t("config.reset"), self._reset_config),
+                ("6", self.t("config.export"), self._export_config),
+                ("7", self.t("config.import"), self._import_config),
                 ("b", self.t("app.back_main"), None),
                 ("q", self.t("app.exit"), None)
             ]
@@ -628,6 +632,53 @@ class FastXPyI18nTUI:
             self.console.print(f"[red]{self.t('error.invalid_input', choice=choice)}[/red]")
         
         input(f"\n{self.t('app.continue')}")
+    
+    def _show_advanced_settings(self):
+        """显示高级设置界面"""
+        self.menu_system.clear_screen()
+        
+        while True:
+            self.console.print("\n" + "=" * 70, style="cyan")
+            self.console.print(f"⚙️  {self.t('config.advanced')}".center(70), style="cyan bold")
+            self.console.print("=" * 70 + "\n", style="cyan")
+            
+            # 获取当前设置
+            show_welcome = self.config_manager.get_config("show_welcome_page", True)
+            auto_check_updates = self.config_manager.get_config("auto_check_updates", True)
+            
+            # 显示高级设置选项
+            self.console.print(f"📋 {self.t('config.advanced_settings')}:")
+            self.console.print(f"1. {self.t('config.show_welcome')}: {'✅' if show_welcome else '❌'}")
+            self.console.print(f"2. {self.t('config.auto_check_updates')}: {'✅' if auto_check_updates else '❌'}")
+            self.console.print()
+            self.console.print(f"b. {self.t('app.back')}")
+            self.console.print(f"q. {self.t('app.exit')}")
+            
+            self.console.print("\n" + "─" * 70, style="dim")
+            choice = Prompt.ask(f"[bold cyan]{self.t('app.confirm')}[/bold cyan]")
+            
+            if choice == 'b':
+                break
+            elif choice == 'q':
+                self.handle_exit()
+                return
+            elif choice == '1':
+                # 切换显示欢迎页面设置
+                new_value = not show_welcome
+                self.config_manager.set_config("show_welcome_page", new_value)
+                status = self.t('config.enabled') if new_value else self.t('config.disabled')
+                self.console.print(f"\n✅ {self.t('config.show_welcome')} {status}")
+                input(f"\n{self.t('app.continue')}")
+            elif choice == '2':
+                # 切换自动检查更新设置
+                new_value = not auto_check_updates
+                self.config_manager.set_config("auto_check_updates", new_value)
+                status = self.t('config.enabled') if new_value else self.t('config.disabled')
+                self.console.print(f"\n✅ {self.t('config.auto_check_updates')} {status}")
+                input(f"\n{self.t('app.continue')}")
+            else:
+                self.console.print(f"[red]❌ {self.t('error.invalid_choice')}[/red]")
+                input(f"\n{self.t('app.continue')}")
     
     def _reset_config(self):
         """重置配置"""
@@ -848,13 +899,13 @@ class FastXPyI18nTUI:
         # 添加版本更新信息
         if self.version_check_failed:
             # 版本检查失败 - 红色圆点
-            status_bar.append(f"📦 {self.current_version} [red]●[/red]")
+            status_bar.append(f"📦: {self.current_version} [red]⚡[/red]")
         elif self.update_available and self.latest_version:
             # 有更新 - 绿色圆点
-            status_bar.append(f"� {self.current_version} [green]●[/green]")
+            status_bar.append(f"📦: {self.current_version} [yellow]⚡[/yellow]")
         else:
             # 最新版本 - 绿色圆点
-            status_bar.append(f"📦 {self.current_version} [green]●[/green]")
+            status_bar.append(f"📦: {self.current_version} [green]⚡[/green]")
 
         # 构建当前位置路径
         path_parts = []
