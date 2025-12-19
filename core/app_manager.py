@@ -283,26 +283,6 @@ class AppManager:
         main_menu.add_item("file_tools_menu")
         main_menu.add_item("python_tools_menu")
         
-        # 添加配置功能
-        main_menu.add_item(ActionItem(
-            id="show_config",
-            name="配置管理",
-            description="查看和修改应用配置",
-            icon="⚙️",
-            command_type=CommandType.PYTHON,
-            python_func=self.show_config_interface
-        ))
-        
-        # 添加插件管理
-        main_menu.add_item(ActionItem(
-            id="plugin_manager",
-            name="插件管理",
-            description="查看和管理插件",
-            icon="🔌",
-            command_type=CommandType.PYTHON,
-            python_func=self.show_plugin_interface
-        ))
-        
         # 创建插件主菜单
         plugins_menu = MenuNode(
             id="plugins_menu",
@@ -482,13 +462,24 @@ class AppManager:
             type="menu"
         ))
         
+        # 注册设置菜单路由
+        self.view_manager.register_route(ViewRoute(
+            id="settings_menu",
+            name="设置",
+            description="应用设置和管理",
+            handler=self._render_menu,
+            parent_id="main_menu",
+            icon="⚙️",
+            type="menu"
+        ))
+        
         # 注册配置功能路由
         self.view_manager.register_route(ViewRoute(
             id="show_config",
             name="配置管理",
             description="查看和修改应用配置",
             handler=self.show_config_interface,
-            parent_id="main_menu",
+            parent_id="settings_menu",
             icon="⚙️",
             type="command"
         ))
@@ -499,7 +490,7 @@ class AppManager:
             name="插件管理",
             description="查看和管理插件",
             handler=self.show_plugin_interface,
-            parent_id="main_menu",
+            parent_id="settings_menu",
             icon="🔌",
             type="command"
         ))
@@ -510,7 +501,7 @@ class AppManager:
             name="日志管理",
             description="查看和管理应用日志",
             handler=self.show_log_interface,
-            parent_id="main_menu",
+            parent_id="settings_menu",
             icon="📊",
             type="command"
         ))
@@ -717,7 +708,7 @@ class AppManager:
         available_choices = [str(i) for i in range(1, len(display_items) + 1)]
         
         # 添加快捷键
-        shortcut_choices = ['c', 'h', 's', 'l', 'q']
+        shortcut_choices = ['c', 'h', 's', 'l', 'q', 'm', 'p']
         
         # 根据当前菜单类型添加返回/退出选项
         from core.menu_system import MenuType
@@ -762,6 +753,21 @@ class AppManager:
             return
         
         elif choice == 'l':
+            self.show_log_interface()
+            return
+        
+        elif choice == 'm':
+            # F1：配置管理
+            self.show_config_interface()
+            return
+        
+        elif choice == 'p':
+            # F2：插件管理
+            self.show_plugin_interface()
+            return
+        
+        elif choice == 'l':
+            # F3：日志管理
             self.show_log_interface()
             return
         

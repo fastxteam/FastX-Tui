@@ -175,6 +175,9 @@ class ViewManager:
         # 渲染内容区
         self._render_content(route, *args, **kwargs)
         
+        # 渲染设置栏
+        self._render_settings()
+        
         # 渲染快捷栏
         self._render_shortcut()
         
@@ -326,9 +329,9 @@ class ViewManager:
         menu_width = 135
         
         # 右侧状态信息
-        runtime_str = f"⏱️{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
-        commands_str = f"💻{self.command_count}"
-        log_str = f"{log_level_icon}{current_log_level}"
+        runtime_str = f"⏱️: {int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
+        commands_str = f"💻: {self.command_count}"
+        log_str = f"{log_level_icon}: {current_log_level}"
         version_str = version_info
         
         # 构建右侧内容
@@ -369,6 +372,23 @@ class ViewManager:
             # 添加空行分隔
             self.console.print()
     
+    def _render_settings(self):
+        """渲染设置栏"""
+        settings = []
+        
+        # 设置相关功能及快捷键
+        settings.extend([
+            "m: 配置",
+            "p: 插件",
+            "l: 日志"
+        ])
+        
+        # 渲染设置栏
+        settings_text = "设置栏: " + " | ".join(settings)
+        # 添加分隔线和特效
+        self.console.print("─" * 120, style="dim")
+        self.console.print(settings_text, style="dim bold")
+    
     def _render_shortcut(self):
         """渲染快捷栏"""
         shortcuts = []
@@ -383,12 +403,11 @@ class ViewManager:
             "c: 清屏",
             "h: 帮助",
             "s: 搜索",
-            "l: 日志",
             "q: 退出"
         ])
         
         # 渲染快捷栏
-        shortcut_text = "快捷键: " + " | ".join(shortcuts)
+        shortcut_text = "快捷栏: " + " | ".join(shortcuts)
         # 添加分隔线和特效
         self.console.print("─" * 120, style="dim")
         self.console.print(shortcut_text, style="dim bold")
