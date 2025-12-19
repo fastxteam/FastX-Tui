@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-菜单系统核心模块
+菜单系统核心模块 - 专注于菜单管理和命令执行
 """
 import os
 import time
@@ -10,10 +10,6 @@ from typing import Dict, List, Optional, Callable, Any, Union
 from dataclasses import dataclass, field
 from enum import Enum
 from rich.console import Console
-from rich.table import Table
-from rich import box
-from rich.text import Text
-from rich.color import parse_rgb_hex
 
 
 class MenuType(Enum):
@@ -92,14 +88,16 @@ class MenuNode(MenuItem):
         """添加菜单项"""
         self.items.append(item)
 
-    def get_display_items(self, menu_system: 'MenuSystem') -> List[MenuItem]:
+    def get_display_items(self, menu_system: Optional['MenuSystem'] = None) -> List[MenuItem]:
         """获取显示的项目列表"""
         display_items = []
         for item in self.items:
             if isinstance(item, str):
-                menu_item = menu_system.get_item_by_id(item)
-                if menu_item and menu_item.enabled:
-                    display_items.append(menu_item)
+                # 如果是字符串ID，需要从menu_system中获取实际项目
+                if menu_system:
+                    menu_item = menu_system.get_item_by_id(item)
+                    if menu_item and menu_item.enabled:
+                        display_items.append(menu_item)
             elif isinstance(item, (MenuItem, MenuNode)) and item.enabled:
                 display_items.append(item)
         return display_items
@@ -114,9 +112,6 @@ class MenuSystem:
         self.menu_history: List[MenuNode] = []
         self.items: Dict[str, Union[MenuItem, MenuNode]] = {}
         self.start_time = time.time()
-
-        # 本地化管理器（稍后设置）
-        self.locale_manager = None
 
         # 图标映射（使用等宽友好的图标）
         self.icon_map = {
@@ -141,23 +136,13 @@ class MenuSystem:
         # 初始化固定快捷键项
         self._init_fixed_items()
 
-    def set_locale_manager(self, locale_manager):
-        """设置本地化管理器"""
-        self.locale_manager = locale_manager
-
-    def t(self, key: str, default: str = None, **kwargs) -> str:
-        """翻译文本"""
-        if self.locale_manager and hasattr(self.locale_manager, 't'):
-            return self.locale_manager.t(key, default, **kwargs)
-        return default if default is not None else key
-
     def _init_fixed_items(self):
         """初始化固定项目"""
         # 清屏
         self.register_item(ActionItem(
             id="clear_screen",
-            name=self.t("app.clear", "清屏"),
-            description=self.t("app.clear", "清除屏幕内容"),
+            name="清屏",
+            description="清除屏幕内容",
             icon="🧹",
             command_type=CommandType.SHELL,
             command="cls" if sys.platform == 'win32' else "clear"
@@ -166,19 +151,19 @@ class MenuSystem:
         # 帮助
         self.register_item(MenuItem(
             id="show_help",
-            name=self.t("app.help", "帮助"),
-            description=self.t("app.help", "显示帮助信息"),
+            name="帮助",
+            description="显示帮助信息",
             icon="📚"
         ))
 
         # 退出
         self.register_item(ActionItem(
             id="exit_app",
-            name=self.t("app.exit", "退出程序"),
-            description=self.t("app.exit", "安全退出程序"),
+            name="退出程序",
+            description="安全退出程序",
             icon="⚡",
             command_type=CommandType.SHELL,
-            command="echo " + self.t("app.exit", "正在退出...")
+            command="echo 正在退出..."
         ))
 
     def register_item(self, item: Union[MenuItem, MenuNode]):
@@ -197,7 +182,6 @@ class MenuSystem:
             if self.current_menu:
                 self.menu_history.append(self.current_menu)
             self.current_menu = menu
-            self.clear_screen()  # 清除屏幕显示新菜单
             return True
         return False
 
@@ -205,7 +189,6 @@ class MenuSystem:
         """返回上一级菜单"""
         if self.menu_history:
             self.current_menu = self.menu_history.pop()
-            self.clear_screen()  # 清除屏幕显示上一级菜单
             return True
         return False
 
@@ -213,160 +196,7 @@ class MenuSystem:
         """返回主菜单"""
         while self.go_back():
             pass
-        self.clear_screen()  # 清除屏幕显示主菜单
-
-    def clear_screen(self):
-        """清除屏幕"""
-        os.system('cls' if sys.platform == 'win32' else 'clear')
-
-    def _print_with_gradient(self, lines: List[str], colors: List[str]):
-        """使用渐变效果打印文本"""
-        r1, g1, b1 = parse_rgb_hex(colors[0].lstrip('#'))
-        r2, g2, b2 = parse_rgb_hex(colors[1].lstrip('#'))
-
-        for line in lines:
-            main_text = Text()
-            if not line:  # 跳过空行
-                self.console.print()
-                continue
-                
-            for j, char in enumerate(line):
-                if char != ' ':
-                    ratio = j / (len(line) - 1) if len(line) > 1 else 0
-                    r = int(r1 + (r2 - r1) * ratio)
-                    g = int(g1 + (g2 - g1) * ratio)
-                    b = int(b1 + (b2 - b1) * ratio)
-                    main_text.append(char, style=f"bold rgb({r},{g},{b})")
-                else:
-                    main_text.append(char)
-            self.console.print(main_text)
-
-    def show_banner(self, version="", banner_style="gradient"):
-        """显示横幅"""
-        banner = f"""
-╔═════════════════════════════════════════════════════════════════════════╗════════════════════════════════════════════╗
-║                                                                         ║                                            ║
-║   ███████╗ █████╗ ███████╗████████╗██╗  ██╗     ████████╗██╗   ██╗██╗   ║   ████                                     ║
-║   ██╔════╝██╔══██╗██╔════╝╚══██╔══╝╚██╗██╔╝     ╚══██╔══╝██║   ██║██║   ║      ███         +------------+            ║
-║   █████╗  ███████║███████╗   ██║    ╚███╔╝         ██║   ██║   ██║██║   ║         ███      |  TERMINAL  |            ║
-║   ██╔══╝  ██╔══██║╚════██║   ██║    ██╔██╗         ██║   ██║   ██║██║   ║           ███    |   > _      |            ║
-║   ██║     ██║  ██║███████║   ██║   ██╔╝ ██╗        ██║   ╚██████╔╝██║   ║         ███      +------^-----+            ║
-║   ╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝        ╚═╝    ╚═════╝ ╚═╝   ║      ███                                   ║
-║                                                                         ║   ███            ██████████████            ║
-║                  Terminal ToolSets For MCU                              ║                                            ║
-║══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════║
-║   Built with FastXTeam/TUI, Architect Developed By @wanqiang.liu        ║ https://github.com/fastxteam/FastX-Tui.git ║
-╚═════════════════════════════════════════════════════════════════════════╝════════════════════════════════════════════╝
-        """
-        
-        if banner_style == "gradient":
-            # 转换横幅为行列表
-            banner_lines = banner.strip().split('\n')
-            main_colors = ["#00ffff", "#ff00ff"]
-            self._print_with_gradient(banner_lines, main_colors)
-        else:
-            # 默认样式
-            self.console.print(banner, style="cyan")
-
-    def get_icon(self, item_type: str, default: str = '▶') -> str:
-        """获取图标，确保宽度一致"""
-        # 对于特定类型的项目使用映射的图标
-        for key, icon in self.icon_map.items():
-            if key in item_type.lower():
-                return icon
-
-        # 对于菜单和命令使用固定图标
-        if item_type.lower() in ['menu', 'sub', 'main']:
-            return '📁'
-        return '▶'
-
-    def show_current_menu(self):
-        """显示当前菜单 - 修复图标对齐问题"""
-        if not self.current_menu:
-            return
-
-
-        # 获取要显示的项目
-        if not self.current_menu:
-            return
-        
-        display_items = self.current_menu.get_display_items(self)
-        if not display_items:
-            self.console.print(f"[yellow]{self.t('error.no_items', '此菜单当前没有可用的项目')}[/yellow]\n")
-            return
-
-        # 创建表格显示菜单项 - 修复图标对齐和宽度
-        table = Table(
-            box=box.SIMPLE,  # 使用简单的边框避免对齐问题
-            show_header=True,
-            header_style="bold white",
-            width=120  # 增加整体表格宽度
-        )
-
-        # 使用更合理的固定宽度列
-        table.add_column(self.t("table.number", "编号"), style="cyan bold", justify="center")
-        # table.add_column(self.t("table.icon", "图标"), style="white", width=10, justify="center")  # 增加图标列宽度
-        table.add_column(self.t("table.name", "名称"), style="white",)  # 增加名称列宽度
-        table.add_column(self.t("table.type", "类型"), style="green")  # 增加类型列宽度
-        table.add_column(self.t("table.description", "描述"), style="yellow")  # 增加描述列宽度
-
-        for i, item in enumerate(display_items, 1):
-            # 确定项目类型
-            if isinstance(item, MenuNode):
-                item_type = self.t("menu.type_menu", "[菜单]")
-                style = "bold cyan"
-            else:
-                item_type = self.t("menu.type_command", "[命令]")
-                style = ""
-
-            # 使用固定宽度的图标或占位符
-            icon = item.icon if hasattr(item, 'icon') and item.icon else self.get_icon(item_type)
-
-            table.add_row(
-                f"[bold]{i}[/bold]",
-                # icon,
-                f"{item.name}",
-                item_type,
-                item.description,
-                style=style
-            )
-
-        self.console.print(table)
-
-    def show_shortcut_hints(self):
-        """显示快捷键提示"""
-        hints = []
-
-        # 导航提示 - 统一使用0返回上一级，b返回主菜单
-        if self.current_menu and self.current_menu.menu_type != MenuType.MAIN:
-            hints.append(f"0:{self.t('hint.back', '返回上级')}")
-            hints.append(f"b:{self.t('app.back_main', '返回主菜单')}")
-        else:
-            hints.append(f"q:{self.t('hint.exit', '退出')}")
-
-        # 功能提示
-        hints.extend([
-            f"c:{self.t('hint.clear', '清屏')}",
-            f"h:{self.t('hint.help', '帮助')}",
-            f"s:{self.t('hint.search', '搜索')}"
-        ])
-
-        self.console.print("─" * 70, style="dim")
-        self.console.print(f"[dim]{self.t('hint.shortcuts', '快捷键')}: " + " | ".join(hints) + "[/dim]")
-
-    def display_interface(self, clear: bool = True):
-        """显示完整界面"""
-        if clear:
-            self.clear_screen()
-
-        # 显示横幅
-        self.show_banner()
-
-        # 显示当前菜单
-        self.show_current_menu()
-
-        # 显示快捷键提示
-        self.show_shortcut_hints()
+        return True
 
     def execute_action(self, action: ActionItem) -> str:
         """执行动作"""
@@ -375,16 +205,14 @@ class MenuSystem:
             output = action.execute()
             execution_time = time.time() - start_time
 
-            unit = self.t("format.time_seconds", "秒")
-            time_msg = f"执行时间: {execution_time:.2f}{unit}"
+            time_msg = f"执行时间: {execution_time:.2f}秒"
             result = f"⏱️  {time_msg}\n"
             result += "─" * 70 + "\n\n"
             result += output
 
             return result
         except Exception as e:
-            error_msg = self.t("error.command_failed", "执行过程中发生错误")
-            return f"{error_msg}:\n\n[red]{str(e)}[/red]"
+            return f"执行过程中发生错误:\n\n[red]{str(e)}[/red]"
 
     def create_submenu(self, menu_id: str, name: str, description: str = "", icon: str = "📁") -> MenuNode:
         """创建子菜单"""
