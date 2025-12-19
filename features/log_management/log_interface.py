@@ -78,7 +78,7 @@ class LogManager:
     
     def _get_user_choice(self) -> str:
         """获取用户选择"""
-        self.console.print("请输入您的选择 (1-6, b, q): ", style="bold green", end="")
+        self.console.print("请输入您的选择 (1-6, 0, q): ", style="bold green", end="")
         
         # 使用类似app_manager中的无缓冲输入
         if sys.platform == "win32":
@@ -114,7 +114,7 @@ class LogManager:
         elif choice == '6':
             self._configure_filter()
         
-        if choice != 'b' and choice != 'q':
+        if choice != '0' and choice != 'q':
             self.console.print("\n按任意键继续...", style="dim")
             if sys.platform == "win32":
                 import msvcrt
@@ -148,11 +148,11 @@ class LogManager:
         for i, level in enumerate(available_levels, 1):
             self.console.print(f"{i}. {level}", style="white")
         
-        self.console.print("b. 返回", style="white")
+        self.console.print("0. 返回", style="white")
         
         while True:
             choice = self._get_user_choice()
-            if choice == 'b':
+            if choice == '0':
                 return
             
             try:
@@ -194,7 +194,7 @@ class LogManager:
                 self._show_pagination(total_pages)
             
             self.console.print()
-            self.console.print("快捷键: ← 上一页 | → 下一页 | b 返回", style="dim")
+            self.console.print("快捷键: ← 上一页 | → 下一页 | 0 返回", style="dim")
             
             choice = self._get_navigation_choice()
             if choice == 'left':
@@ -203,7 +203,7 @@ class LogManager:
             elif choice == 'right':
                 if self.current_page < total_pages:
                     self.current_page += 1
-            elif choice == 'b':
+            elif choice == '0':
                 break
     
     def _read_logs(self) -> List[Dict[str, str]]:
@@ -292,8 +292,8 @@ class LogManager:
                         return 'left'
                     elif key == b'M':  # 右箭头
                         return 'right'
-                elif key == b'b':
-                    return 'b'
+                elif key == b'0':
+                    return '0'
         else:
             import termios
             import tty
@@ -303,8 +303,8 @@ class LogManager:
                 tty.setraw(sys.stdin.fileno())
                 while True:
                     key = sys.stdin.read(1)
-                    if key == 'b':
-                        return 'b'
+                    if key == '0':
+                        return '0'
                     elif key == '\x1b':  # ESC
                         sys.stdin.read(1)  # 跳过 [
                         direction = sys.stdin.read(1)
@@ -359,22 +359,22 @@ class LogManager:
     def _configure_filter(self):
         """配置日志筛选条件"""
         while True:
-            self.console.print("\n" + "-" * 80)
-            self.console.print("⚙️ 配置日志筛选条件".center(80), style="bold green")
+            self.console.clear()
+            self.console.print("⚙️  配置日志筛选条件".center(80), style="bold cyan")
             self.console.print("-" * 80)
             
             filter_menu = [
                 "1. 设置日志等级筛选",
                 "2. 设置插件日志筛选",
                 "3. 清除所有筛选条件",
-                "b. 返回"
+                "0. 返回"
             ]
             
             for item in filter_menu:
                 self.console.print(item, style="white")
             
             choice = self._get_user_choice()
-            if choice == 'b':
+            if choice == '0':
                 return
             elif choice == '1':
                 self._set_level_filter()
@@ -395,8 +395,12 @@ class LogManager:
         for i, level in enumerate(available_levels, 1):
             self.console.print(f"{i}. {level}", style="white")
         
+        self.console.print("0. 返回", style="white")
+        
         while True:
             choice = self._get_user_choice()
+            if choice == '0':
+                return
             try:
                 index = int(choice) - 1
                 if 0 <= index < len(available_levels):
@@ -446,7 +450,7 @@ class LogManager:
         elif choice == '6':
             self._configure_filter()
         
-        if choice != 'b' and choice != 'q':
+        if choice != '0' and choice != 'q':
             self.console.print("\n按任意键继续...", style="dim")
             if sys.platform == "win32":
                 import msvcrt

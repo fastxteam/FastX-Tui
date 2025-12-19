@@ -6,6 +6,7 @@ import os
 import sys
 from typing import Optional
 
+from rich import box
 from rich.console import Console
 from rich.table import Table
 
@@ -50,7 +51,7 @@ class PluginInterface:
             self.console.print(f"📦 已加载插件 ({len(plugins)}):")
             
             # 创建表格显示插件信息
-            table = Table(show_header=True, header_style="bold magenta")
+            table = Table(show_header=True, header_style="bold magenta", box=box.SIMPLE)
             table.add_column("编号", style="cyan bold", justify="center")
             table.add_column("状态", justify="center")
             table.add_column("名称", style="white")
@@ -99,7 +100,7 @@ class PluginInterface:
     
     def _get_user_choice(self) -> str:
         """获取用户选择"""
-        self.console.print("请输入您的选择 (1-4, b, q): ", style="bold green", end="")
+        self.console.print("请输入您的选择 (1-4, 0, q): ", style="bold green", end="")
         
         # 使用无缓冲输入
         if sys.platform == "win32":
@@ -131,7 +132,7 @@ class PluginInterface:
         elif choice == '4':
             self._toggle_plugin()
         
-        if choice != 'b' and choice != 'q':
+        if choice != '0' and choice != 'q':
             self.console.print("\n按任意键继续...", style="dim")
             if sys.platform == "win32":
                 import msvcrt

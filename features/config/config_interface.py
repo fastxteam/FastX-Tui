@@ -61,7 +61,7 @@ class ConfigInterface:
     
     def _get_user_choice(self) -> str:
         """获取用户选择"""
-        self.console.print("请输入您的选择 (1-6, b, q): ", style="bold green", end="")
+        self.console.print("请输入您的选择 (1-6, 0, q): ", style="bold green", end="")
         
         # 使用无缓冲输入
         if sys.platform == "win32":
@@ -97,7 +97,7 @@ class ConfigInterface:
         elif choice == '6':
             self._import_config()
         
-        if choice != 'b' and choice != 'q':
+        if choice != '0' and choice != 'q':
             self.console.print("\n按任意键继续...", style="dim")
             if sys.platform == "win32":
                 import msvcrt
@@ -133,11 +133,11 @@ class ConfigInterface:
         for i, theme in enumerate(themes, 1):
             self.console.print(f"{i}. {theme}", style="white")
         
-        self.console.print("b. 返回", style="white")
+        self.console.print("0. 返回", style="white")
         
         while True:
             choice = self._get_user_choice()
-            if choice == 'b':
+            if choice == '0':
                 return
             
             try:
@@ -170,11 +170,11 @@ class ConfigInterface:
             self.console.print(f"2. 自动检查更新: {'✅' if auto_check_updates else '❌'}")
             self.console.print(f"3. 横幅样式: {banner_style}")
             self.console.print()
-            self.console.print("b. 返回")
+            self.console.print("0. 返回")
             
             choice = self._get_user_choice()
             
-            if choice == 'b':
+            if choice == '0':
                 break
             elif choice == '1':
                 # 切换显示欢迎页面设置
