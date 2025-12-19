@@ -208,7 +208,8 @@ class MenuSystem:
             time_msg = f"执行时间: {execution_time:.2f}秒"
             result = f"⏱️  {time_msg}\n"
             result += "─" * 70 + "\n\n"
-            result += output
+            # 确保output是字符串，避免NoneType错误
+            result += str(output) if output is not None else ""
 
             return result
         except Exception as e:

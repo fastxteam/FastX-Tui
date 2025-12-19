@@ -724,6 +724,12 @@ class AppManager:
             self.handle_exit()
             return
         
+        elif choice == 'b':
+            # 按b键直接返回主菜单
+            self.view_manager.clear_screen()
+            self.menu_system.navigate_to_menu("main_menu")
+            return
+        
         elif choice == 'h':
             self.show_help()
             return
