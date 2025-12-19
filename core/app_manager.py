@@ -825,6 +825,8 @@ class AppManager:
             self.console.print("\n" + "─" * 70, style="dim")
             self.console.print(f"[yellow]按回车键继续...[/yellow]")
             input()
+            # 清屏准备返回菜单
+            self.view_manager.clear_screen()
     
     def _display_interface(self):
         """显示完整界面"""
