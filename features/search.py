@@ -109,6 +109,8 @@ class SearchFeature:
         self.console.print("\n" + "─" * 70, style="dim")
         self.console.print("[yellow]按任意键返回...[/yellow]")
         input()
+        # 返回前清屏
+        self.console.clear()
     
     def _display_search_results(self, results: List[MenuItem], keyword: str):
         """显示搜索结果"""

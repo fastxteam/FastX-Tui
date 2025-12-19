@@ -64,8 +64,10 @@ class PluginInterface:
             elif choice == '3':
                 self._show_plugin_directory()
             elif choice == 'b':
-                # 返回主菜单
-                break
+                # 返回主菜单前清屏
+                self.console.print("\n" + "─" * 70, style="dim")
+                self.console.print(f"[yellow]返回主菜单...[/yellow]")
+                return
             elif choice == 'q':
                 # 退出程序
                 from sys import exit

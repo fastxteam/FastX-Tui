@@ -58,3 +58,7 @@ class HelpFeature:
         self.console.print("\n" + "─" * 70, style="dim")
         self.console.print("[yellow]按回车键继续...[/yellow]")
         input()
+        # 返回前清屏
+        from core.view_manager import ViewManager
+        # 使用控制台清屏，避免依赖外部对象
+        self.console.clear()

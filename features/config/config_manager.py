@@ -46,8 +46,10 @@ class ConfigInterface:
             choice = Prompt.ask(f"[bold cyan]请选择[/bold cyan]")
     
             if choice == 'b':
-                # 返回主菜单
-                break
+                # 返回主菜单前清屏
+                self.console.print("\n" + "─" * 70, style="dim")
+                self.console.print(f"[yellow]返回主菜单...[/yellow]")
+                return
             elif choice == 'q':
                 from sys import exit
                 self.console.print(f"\n[green]感谢使用 FastX-Tui[/green]")
