@@ -21,6 +21,7 @@ from features.search import SearchFeature
 from features.help import HelpFeature
 from features.config.config_manager import ConfigInterface
 from features.plugin.plugin_manager import PluginInterface
+from features.log_management import LogManager
 
 class AppManager:
     """应用管理器"""
@@ -57,6 +58,9 @@ class AppManager:
         
         # 初始化插件功能
         self.plugin_interface = PluginInterface(self.console, self.plugin_manager, self.menu_system, self.config_manager)
+        
+        # 初始化日志管理功能
+        self.log_manager = LogManager(self.console, self.config_manager)
         
         # 初始化操作类
         self.operations = {
@@ -500,6 +504,17 @@ class AppManager:
             type="command"
         ))
         
+        # 注册日志管理路由
+        self.view_manager.register_route(ViewRoute(
+            id="log_manager",
+            name="日志管理",
+            description="查看和管理应用日志",
+            handler=self.show_log_interface,
+            parent_id="main_menu",
+            icon="📊",
+            type="command"
+        ))
+        
         # 注册系统命令路由
         self.view_manager.register_route(ViewRoute(
             id="system_info",
@@ -671,6 +686,10 @@ class AppManager:
         """显示插件管理界面"""
         self.plugin_interface.show_plugin_interface()
     
+    def show_log_interface(self):
+        """显示日志管理界面"""
+        self.log_manager.show_log_interface()
+    
     def show_help(self, *args, **kwargs):
         """显示帮助信息"""
         self.help_feature.show_help()
@@ -698,7 +717,7 @@ class AppManager:
         available_choices = [str(i) for i in range(1, len(display_items) + 1)]
         
         # 添加快捷键
-        shortcut_choices = ['c', 'h', 's', 'q']
+        shortcut_choices = ['c', 'h', 's', 'l', 'q']
         
         # 根据当前菜单类型添加返回/退出选项
         from core.menu_system import MenuType
@@ -740,6 +759,10 @@ class AppManager:
         
         elif choice == 's':
             self.search_feature.show_search_interface()
+            return
+        
+        elif choice == 'l':
+            self.show_log_interface()
             return
         
         elif choice == '0':

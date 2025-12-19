@@ -15,6 +15,7 @@ from rich.text import Text
 from rich import box
 
 from .menu_system import MenuNode, ActionItem, MenuType, CommandType
+from .logger import get_current_log_level
 
 
 @dataclass
@@ -307,8 +308,18 @@ class ViewManager:
         # 构建面包屑字符串
         breadcrumb_str = " > ".join(breadcrumb)
         
-        # 日志等级图标（默认使用INFO级别）
-        log_level_icon = "📝"
+        # 获取当前日志等级
+        current_log_level = get_current_log_level()
+        
+        # 根据日志等级选择图标
+        log_level_icons = {
+            "DEBUG": "🔍",
+            "INFO": "📝",
+            "WARNING": "⚠️",
+            "ERROR": "❌",
+            "CRITICAL": "💥"
+        }
+        log_level_icon = log_level_icons.get(current_log_level, "📝")
         
         # 构建状态栏右侧内容 - 格式：图标：运行s | 指令统计图标：n | 日志等级图标：xx | 版本图标：vx.x.x ⚡
         # 使用固定宽度120(135 跟 "─" * 120差不多)，与菜单宽度对齐
@@ -317,7 +328,7 @@ class ViewManager:
         # 右侧状态信息
         runtime_str = f"⏱️{int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
         commands_str = f"💻{self.command_count}"
-        log_str = f"{log_level_icon}INFO"
+        log_str = f"{log_level_icon}{current_log_level}"
         version_str = version_info
         
         # 构建右侧内容
@@ -372,6 +383,7 @@ class ViewManager:
             "c: 清屏",
             "h: 帮助",
             "s: 搜索",
+            "l: 日志管理",
             "q: 退出"
         ])
         
