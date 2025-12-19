@@ -25,7 +25,8 @@ class ConfigInterface:
             self.console.clear()
             self._show_config_menu()
             choice = self._get_user_choice()
-            if choice == 'b':
+            if choice == '0':
+                self.console.clear()
                 return True
             elif choice == 'q':
                 return False
@@ -45,7 +46,7 @@ class ConfigInterface:
             "4. 重置配置",
             "5. 导出配置",
             "6. 导入配置",
-            "b. 返回主菜单",
+            "0. 返回主菜单",
             "q. 退出"
         ]
         

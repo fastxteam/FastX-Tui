@@ -36,7 +36,8 @@ class LogManager:
             self.console.clear()
             self._show_log_menu()
             choice = self._get_user_choice()
-            if choice == 'b':
+            if choice == '0':
+                self.console.clear()
                 return True
             elif choice == 'q':
                 return False
@@ -56,7 +57,7 @@ class LogManager:
             "4. 打开日志文件",
             "5. 设置日志显示大小",
             "6. 配置日志筛选条件",
-            "b. 返回主菜单",
+            "0. 返回主菜单",
             "q. 退出"
         ]
         
