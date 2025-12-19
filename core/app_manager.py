@@ -19,8 +19,8 @@ from core.network_tools import NetworkToolsPlugin
 from config.config_manager import ConfigManager
 from features.search import SearchFeature
 from features.help import HelpFeature
-from features.config.config_manager import ConfigInterface
-from features.plugin.plugin_manager import PluginInterface
+from features.config.config_interface import ConfigInterface
+from features.plugin.plugin_interface import PluginInterface
 from features.log_management import LogManager
 
 class AppManager:

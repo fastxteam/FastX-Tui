@@ -3,4 +3,4 @@
 FastX-Tui 插件功能模块
 """
 
-from .plugin_manager import PluginInterface, get_plugin_interface
+from .plugin_interface import PluginInterface

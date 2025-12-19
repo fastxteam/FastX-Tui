@@ -3,4 +3,4 @@
 FastX-Tui 配置功能模块
 """
 
-from .config_manager import ConfigInterface, get_config_interface
+from .config_interface import ConfigInterface
