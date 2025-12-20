@@ -8,7 +8,7 @@ import sys
 from typing import Optional
 from rich import box
 from rich.console import Console
-from rich.table import Table
+from rich.table import Table, box
 
 from core.plugin_manager import PluginManager, PluginRepository
 from core.menu_system import MenuSystem
@@ -195,7 +195,7 @@ class PluginInterface:
         
         if plugins['plugins']:
             self.console.print(f"\n找到 {plugins['total']} 个插件:")
-            table = Table(show_header=True, header_style="bold magenta", box=Table.box.SIMPLE)
+            table = Table(show_header=True, header_style="bold magenta", box=box.SIMPLE)
             table.add_column("编号", style="cyan", justify="center")
             table.add_column("名称", style="white")
             table.add_column("版本", style="green")

@@ -350,6 +350,25 @@ class PluginRepository:
         self.logger = get_logger("PluginRepository")
         self.cache = {}
         self.cache_time = 0
+        
+        # 示例插件数据，作为在线插件商店的首个仓库
+        self.example_plugins = [
+            {
+                "id": "example-plugin",
+                "name": "示例插件",
+                "version": "1.0.0",
+                "author": "FastX Team",
+                "description": "这是一个FastX-Tui插件系统的示例插件，展示了插件的基本功能和最佳实践。",
+                "category": "开发",
+                "tags": ["示例", "开发", "模板"],
+                "rating": 4.8,
+                "downloads": 1000,
+                "repository": "https://github.com/fastxteam/FastX-Tui-Plugin-Example.git",
+                "homepage": "https://github.com/fastxteam/FastX-Tui-Plugin-Example",
+                "license": "MIT",
+                "last_updated": "2025-12-21"
+            }
+        ]
     
     def get_plugins(self, category: str = "", search: str = "", page: int = 1, per_page: int = 20) -> Dict[str, Any]:
         """获取插件列表"""
@@ -369,7 +388,125 @@ class PluginRepository:
             return response.json()
         except Exception as e:
             self.logger.error(f"获取插件列表失败: {str(e)}")
-            return {"plugins": [], "total": 0, "page": 1, "per_page": 20}
+            # 返回示例插件数据作为备选
+            plugins = self.example_plugins
+            
+            # 按分类过滤
+            if category:
+                plugins = [p for p in plugins if p["category"] == category]
+            
+            # 按搜索关键词过滤
+            if search:
+                search_lower = search.lower()
+                plugins = [p for p in plugins if 
+                          search_lower in p["name"].lower() or 
+                          search_lower in p["description"].lower() or 
+                          any(search_lower in tag.lower() for tag in p["tags"])]
+            
+            # 分页处理
+            start = (page - 1) * per_page
+            end = start + per_page
+            paginated_plugins = plugins[start:end]
+            
+            return {
+                "plugins": paginated_plugins,
+                "total": len(plugins),
+                "page": page,
+                "per_page": per_page
+            }
+    
+    def get_plugin_info_from_github(self, repo_url: str) -> Optional[Dict[str, Any]]:
+        """从GitHub仓库获取插件信息，自动读取fastx_plugin.py"""
+        try:
+            import requests
+            
+            # 转换仓库URL为raw内容URL
+            # https://github.com/user/repo.git -> https://raw.githubusercontent.com/user/repo/main/fastx_plugin.py
+            repo_url = repo_url.rstrip('.git')
+            if 'github.com/' in repo_url:
+                # 提取用户名和仓库名
+                parts = repo_url.split('github.com/')[1].split('/')
+                if len(parts) >= 2:
+                    user = parts[0]
+                    repo = parts[1]
+                    
+                    # 尝试读取main分支的fastx_plugin.py
+                    raw_url = f"https://raw.githubusercontent.com/{user}/{repo}/main/fastx_plugin.py"
+                    response = requests.get(raw_url, timeout=5)
+                    
+                    if response.status_code == 200:
+                        # 解析插件信息
+                        plugin_code = response.text
+                        
+                        # 使用临时文件来执行代码并获取插件信息
+                        import tempfile
+                        import os
+                        import sys
+                        import importlib.util
+                        
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            # 创建临时插件文件
+                            temp_file = os.path.join(temp_dir, "fastx_plugin.py")
+                            with open(temp_file, 'w', encoding='utf-8') as f:
+                                f.write(plugin_code)
+                            
+                            # 添加临时目录到sys.path
+                            sys.path.insert(0, temp_dir)
+                            
+                            try:
+                                # 动态导入插件模块
+                                spec = importlib.util.spec_from_file_location(
+                                    "temp_plugin",
+                                    temp_file
+                                )
+                                if spec and spec.loader:
+                                    module = importlib.util.module_from_spec(spec)
+                                    spec.loader.exec_module(module)
+                                    
+                                    # 查找插件类
+                                    for attr_name in dir(module):
+                                        attr = getattr(module, attr_name)
+                                        if (isinstance(attr, type) and 
+                                            hasattr(attr, "get_info") and 
+                                            callable(getattr(attr, "get_info"))):
+                                            # 实例化插件并获取信息
+                                            plugin_instance = attr()
+                                            plugin_info = plugin_instance.get_info()
+                                            
+                                            # 转换为字典
+                                            return {
+                                                "id": f"{user}-{repo}",
+                                                "name": plugin_info.name,
+                                                "version": plugin_info.version,
+                                                "author": plugin_info.author,
+                                                "description": plugin_info.description,
+                                                "category": plugin_info.category,
+                                                "tags": plugin_info.tags,
+                                                "rating": plugin_info.rating,
+                                                "downloads": plugin_info.downloads,
+                                                "repository": repo_url,
+                                                "homepage": repo_url,
+                                                "license": plugin_info.license,
+                                                "last_updated": plugin_info.last_updated
+                                            }
+                            except Exception as e:
+                                self.logger.error(f"解析GitHub插件信息失败: {str(e)}")
+                            finally:
+                                # 从sys.path中移除临时目录
+                                sys.path.pop(0)
+                    
+                    # 尝试读取master分支
+                    raw_url = f"https://raw.githubusercontent.com/{user}/{repo}/master/fastx_plugin.py"
+                    response = requests.get(raw_url, timeout=5)
+                    
+                    if response.status_code == 200:
+                        # 同样的解析逻辑，这里简化处理
+                        self.logger.error("master分支找到fastx_plugin.py，但暂不支持")
+        except Exception as e:
+            self.logger.error(f"从GitHub获取插件信息失败: {str(e)}")
+        
+        # 如果没有fastx_plugin.py或解析失败，返回None
+        return None
     
     def get_plugin_details(self, plugin_id: str) -> Optional[Dict[str, Any]]:
         """获取插件详情"""
@@ -382,6 +519,10 @@ class PluginRepository:
             return response.json()
         except Exception as e:
             self.logger.error(f"获取插件详情失败: {str(e)}")
+            # 从示例插件中查找
+            for plugin in self.example_plugins:
+                if plugin["id"] == plugin_id:
+                    return plugin
             return None
     
     def install_plugin(self, plugin_id: str, plugin_manager: "PluginManager") -> bool:
