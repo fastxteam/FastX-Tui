@@ -311,7 +311,58 @@ class PluginInterface:
         self.plugin_manager.load_all_plugins()
         self.plugin_manager.register_all_plugins(self.menu_system)
         
+        # 直接在PluginInterface中重建插件菜单
+        self._rebuild_plugin_menu()
+        
         self.console.print(f"✅ 成功重新加载 {len(self.plugin_manager.plugins)} 个插件", style="bold green")
+    
+    def _rebuild_plugin_menu(self):
+        """重建插件菜单，直接从AppManager复制逻辑"""
+        from core.menu_system import MenuNode, MenuType
+        
+        # 获取插件菜单
+        plugins_menu = self.menu_system.get_item_by_id("plugins_menu")
+        if not isinstance(plugins_menu, MenuNode):
+            # 如果插件菜单不存在，创建它
+            plugins_menu = MenuNode(
+                id="plugins_menu",
+                name="插件命令",
+                description="所有已安装插件的命令",
+                menu_type=MenuType.SUB,
+                icon="🔌"
+            )
+            self.menu_system.register_item(plugins_menu)
+        
+        # 清空现有插件菜单项
+        plugins_menu.items.clear()
+        
+        # 获取主菜单
+        main_menu = self.menu_system.get_item_by_id("main_menu")
+        if not isinstance(main_menu, MenuNode):
+            return
+        
+        # 从主菜单中移除插件菜单（如果存在）
+        if "plugins_menu" in main_menu.items:
+            main_menu.items.remove("plugins_menu")
+        
+        # 添加所有已注册的插件命令和子菜单到插件主菜单
+        plugin_items_added = False
+        for item_id, item in self.menu_system.items.items():
+            # 跳过已经添加过的项目和固定项
+            if item_id not in ["main_menu", "system_tools_menu", "file_tools_menu", "python_tools_menu", "show_config", "plugin_manager", "clear_screen", "show_help", "exit_app", "plugins_menu"]:
+                # 添加所有插件创建的项目，包括MenuNode类型的子菜单
+                if isinstance(item, MenuNode):
+                    # 插件创建的子菜单，直接添加到插件主菜单
+                    plugins_menu.add_item(item_id)
+                    plugin_items_added = True
+                else:
+                    # 插件命令，直接添加到插件主菜单
+                    plugins_menu.add_item(item_id)
+                    plugin_items_added = True
+        
+        # 如果有插件命令，将插件菜单重新添加到主菜单
+        if plugin_items_added:
+            main_menu.add_item("plugins_menu")
     
     def _refresh_plugins(self):
         """刷新插件列表"""
