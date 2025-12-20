@@ -402,7 +402,7 @@ class ViewManager:
         shortcuts.extend([
             "c: 清屏",
             "h: 帮助",
-            "u: 检查更新",
+            "u: 更新",
             "s: 搜索",
             "q: 退出"
         ])
