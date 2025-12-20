@@ -31,9 +31,6 @@ jobs:
       - name: Extract version from pyproject.toml
         id: extract_version
         run: |
-          import toml
-          import os
-          
           with open('pyproject.toml', 'r') as f:
               data = toml.load(f)
           

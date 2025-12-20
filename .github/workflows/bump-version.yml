@@ -35,11 +35,6 @@ jobs:
       - name: Bump version
         id: bump_version
         run: |
-          import toml
-          import json
-          import os
-          import subprocess
-          
           # Read current version from pyproject.toml
           with open('pyproject.toml', 'r') as f:
               data = toml.load(f)
