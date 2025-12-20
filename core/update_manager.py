@@ -222,61 +222,59 @@ class UpdateManager:
             if not exe_url:
                 return False
             
-            # 创建临时目录下载新版本
-            with tempfile.TemporaryDirectory() as temp_dir:
-                if self.console:
-                    self.console.print(f"[cyan]创建临时目录: {temp_dir}[/cyan]")
-                
-                # 下载新版本exe
-                new_exe_path = os.path.join(temp_dir, f"fastx_new.exe")
-                if self.console:
-                    self.console.print(f"[cyan]正在下载新版本: {exe_url}[/cyan]")
-                
-                success = self._download_file(exe_url, new_exe_path)
-                if not success:
-                    return False
-                
-                # 验证下载的文件
-                if not os.path.exists(new_exe_path) or os.path.getsize(new_exe_path) == 0:
-                    logger.error("下载的文件无效")
-                    if self.console:
-                        self.console.print("[red]下载的文件无效[/red]")
-                    return False
-                
-                if self.console:
-                    self.console.print("[green]新版本下载成功[/green]")
-                
-                # 替换旧版本exe
-                backup_exe_path = os.path.join(current_exe_dir, f"{current_exe_name}.old")
-                
-                # 重命名旧exe为备份
-                if os.path.exists(current_exe_path):
-                    os.rename(current_exe_path, backup_exe_path)
-                    if self.console:
-                        self.console.print(f"[yellow]已备份旧版本: {current_exe_name}.old[/yellow]")
-                
-                # 复制新版本到当前目录
-                shutil.copy2(new_exe_path, current_exe_path)
-                if self.console:
-                    self.console.print(f"[green]新版本已安装: {current_exe_name}[/green]")
-                
-                # 删除备份文件
-                if os.path.exists(backup_exe_path):
-                    os.remove(backup_exe_path)
-                    if self.console:
-                        self.console.print(f"[yellow]已删除旧版本备份[/yellow]")
-                
-                logger.info("应用更新成功")
-                if self.console:
-                    self.console.print("[green]应用更新成功! 请重启应用以应用新功能[/green]")
-                
-                return True
-                
-        except PermissionError:
-            logger.error("更新失败: 权限不足，请以管理员身份运行")
+            # 下载新版本到当前目录
+            new_exe_path = os.path.join(current_exe_dir, f"fastx_new.exe")
             if self.console:
-                self.console.print("[red]更新失败: 权限不足，请以管理员身份运行[/red]")
-            return False
+                self.console.print(f"[cyan]正在下载新版本: {exe_url}[/cyan]")
+            
+            success = self._download_file(exe_url, new_exe_path)
+            if not success:
+                return False
+            
+            # 验证下载的文件
+            if not os.path.exists(new_exe_path) or os.path.getsize(new_exe_path) == 0:
+                logger.error("下载的文件无效")
+                if self.console:
+                    self.console.print("[red]下载的文件无效[/red]")
+                return False
+            
+            if self.console:
+                self.console.print("[green]新版本下载成功[/green]")
+            
+            # 创建批处理脚本用于更新
+            batch_script_path = os.path.join(current_exe_dir, f"fastx_update.bat")
+            
+            # 批处理脚本内容
+            batch_content = f'''
+@echo off
+:: 等待当前进程退出
+timeout /t 2 /nobreak >nul
+
+:: 替换旧版本
+if exist "{current_exe_path}" del "{current_exe_path}"
+rename "{new_exe_path}" "{current_exe_name}"
+
+:: 清理临时文件
+if exist "{batch_script_path}" del "{batch_script_path}"
+
+:: 重启应用
+start "" "{os.path.join(current_exe_dir, current_exe_name)}"
+'''
+            
+            # 写入批处理脚本
+            with open(batch_script_path, 'w') as f:
+                f.write(batch_content)
+            
+            if self.console:
+                self.console.print("[green]更新脚本创建成功[/green]")
+                self.console.print("[yellow]应用将退出并开始更新...[/yellow]")
+            
+            # 执行批处理脚本并退出当前应用
+            subprocess.Popen(batch_script_path, shell=True, cwd=current_exe_dir)
+            
+            # 退出当前应用
+            sys.exit(0)
+            
         except Exception as e:
             logger.exception("从exe更新失败")
             if self.console:
