@@ -28,7 +28,7 @@ jobs:
         run: python -m pip install uv
 
       - name: Install toml
-        run: uv add toml
+        run: pip install toml
 
       - name: Bump version
         id: bump_version
