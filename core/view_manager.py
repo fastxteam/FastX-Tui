@@ -400,13 +400,13 @@ class ViewManager:
         
         # 功能快捷键
         shortcuts.extend([
+            "q: 退出",
             "c: 清屏",
-            "h: 帮助",
-            "u: 更新",
             "s: 搜索",
-            "q: 退出"
+            "h: 帮助",
+            "u: 更新"
         ])
-        
+
         # 渲染快捷栏
         shortcut_text = "快捷栏: " + " | ".join(shortcuts)
         # 添加分隔线和特效
