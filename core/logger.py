@@ -160,3 +160,4 @@ def get_current_log_level() -> str:
 def get_available_log_levels() -> list:
     """获取可用的日志级别"""
     return global_logger.get_available_levels()
+
