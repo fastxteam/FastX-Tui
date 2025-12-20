@@ -30,7 +30,7 @@ jobs:
         run: uv sync
         
       - name: Install additional dependencies
-        run: uv pip install toml
+        run: uv add toml
       
       - name: Bump version
         id: bump_version

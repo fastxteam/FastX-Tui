@@ -26,7 +26,7 @@ jobs:
         run: uv sync
 
       - name: Install additional build dependencies
-        run: uv pip install pyinstaller build
+        run: uv add pyinstaller build toml
 
       - name: Extract version from pyproject.toml
         id: extract_version
