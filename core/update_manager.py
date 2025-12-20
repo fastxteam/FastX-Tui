@@ -264,13 +264,21 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
             # 写入批处理脚本
             with open(batch_script_path, 'w') as f:
                 f.write(batch_content)
+                f.flush()  # 刷新缓冲区到OS
+                os.fsync(f.fileno())  # 强制写入磁盘
             
             if self.console:
                 self.console.print("[green]更新脚本创建成功[/green]")
                 self.console.print("[yellow]应用将退出并开始更新...[/yellow]")
             
-            # 执行批处理脚本并退出当前应用
-            subprocess.Popen(batch_script_path, shell=True, cwd=current_exe_dir)
+            # 使用cmd.exe显式执行批处理脚本，确保正确运行
+            subprocess.Popen(
+                ['cmd.exe', '/c', batch_script_path],
+                shell=False,  # 不使用shell，直接执行cmd
+                cwd=current_exe_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
             
             # 退出当前应用
             sys.exit(0)
