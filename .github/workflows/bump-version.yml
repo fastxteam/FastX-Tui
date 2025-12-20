@@ -152,10 +152,10 @@ jobs:
         run: uv add pyinstaller build toml
 
       - name: Build wheel and sdist
-        run: python -m build
+        run: uv run python -m build  # 使用 uv 环境运行
 
       - name: Build Windows executable with PyInstaller
-        run: pyinstaller --onefile --name fastx main.py
+        run: uv run pyinstaller --onefile --name fastx main.py
 
       - name: List artifacts
         run: dir dist /s
@@ -199,10 +199,10 @@ jobs:
         run: uv add pyinstaller build toml
 
       - name: Build wheel and sdist
-        run: python -m build
+        run: uv run python -m build  # 使用 uv 环境运行
 
       - name: Build Linux executable with PyInstaller
-        run: pyinstaller --onefile --name fastx-linux main.py
+        run: uv run pyinstaller --onefile --name fastx-linux main.py
 
       - name: List artifacts
         run: ls -la dist/
