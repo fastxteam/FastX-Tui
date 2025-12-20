@@ -16,6 +16,7 @@ from core.plugin_manager import PluginManager
 from core.view_manager import ViewManager, ViewRoute
 from core.update_manager import UpdateManager
 from core.network_tools import NetworkToolsPlugin
+from core.version import FULL_VERSION, VERSION
 from config.config_manager import ConfigManager
 from features.search import SearchFeature
 from features.help import HelpFeature
@@ -74,7 +75,7 @@ class AppManager:
         self.command_count = 0
         
         # 版本信息
-        self.current_version = "v0.0.1"
+        self.current_version = FULL_VERSION
         
         # 初始化网络工具插件
         self.network_tools = NetworkToolsPlugin()
