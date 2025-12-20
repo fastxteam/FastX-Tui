@@ -647,6 +647,16 @@ class AppManager:
         ))
         
         self.view_manager.register_route(ViewRoute(
+            id="update_app",
+            name="检查更新",
+            description="检查并更新应用到最新版本",
+            handler=self.update_app,
+            parent_id=None,
+            icon="🔄",
+            type="command"
+        ))
+        
+        self.view_manager.register_route(ViewRoute(
             id="exit_app",
             name="退出",
             description="退出应用程序",
@@ -691,6 +701,28 @@ class AppManager:
         """显示帮助信息"""
         self.help_feature.show_help()
     
+    def update_app(self):
+        """检查并更新应用到最新版本"""
+        # 先检查是否有可用更新
+        update_available, latest_version = self.update_manager.check_for_updates(force_check=True)
+        
+        if update_available:
+            # 执行更新
+            success = self.update_manager.update_app()
+            if success:
+                # 询问用户是否重启应用
+                from rich.prompt import Confirm
+                should_restart = Confirm.ask("\n是否立即重启应用以应用更新?")
+                if should_restart:
+                    import os
+                    import sys
+                    # 重启应用
+                    self.console.print("[green]正在重启应用...[/green]")
+                    self.cleanup()
+                    os.execl(sys.executable, sys.executable, *sys.argv)
+        else:
+            self.console.print("[yellow]当前已是最新版本，无需更新[/yellow]")
+    
     def handle_exit(self):
         """处理退出"""
         # 这个方法将在后续移到features/exit模块中
@@ -714,7 +746,7 @@ class AppManager:
         available_choices = [str(i) for i in range(1, len(display_items) + 1)]
         
         # 添加快捷键
-        shortcut_choices = ['c', 'h', 's', 'l', 'q', 'm', 'p']
+        shortcut_choices = ['c', 'h', 'u', 's', 'l', 'q', 'm', 'p']
         
         # 根据当前菜单类型添加返回/退出选项
         from core.menu_system import MenuType
@@ -754,6 +786,12 @@ class AppManager:
             self.view_manager.clear_screen()
             return
         
+        elif choice == 'u':
+            # 检查更新
+            self.view_manager.clear_screen()
+            self.update_app()
+            return
+        
         elif choice == 's':
             self.search_feature.show_search_interface()
             return
@@ -770,11 +808,6 @@ class AppManager:
         elif choice == 'p':
             # F2：插件管理
             self.show_plugin_interface()
-            return
-        
-        elif choice == 'l':
-            # F3：日志管理
-            self.show_log_interface()
             return
         
         elif choice == '0':
