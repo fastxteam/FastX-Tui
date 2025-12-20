@@ -35,9 +35,6 @@ jobs:
       - name: Install directory dependencies
         run: |
           pip install toml
-          pip install json
-          pip install os
-          pip install subprocess
 
       - name: Bump version
         id: bump_version
