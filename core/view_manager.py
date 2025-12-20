@@ -326,7 +326,7 @@ class ViewManager:
         
         # 构建状态栏右侧内容 - 格式：图标：运行s | 指令统计图标：n | 日志等级图标：xx | 版本图标：vx.x.x ⚡
         # 使用固定宽度120(135 跟 "─" * 120差不多)，与菜单宽度对齐
-        menu_width = 135
+        menu_width = 130
         
         # 右侧状态信息
         runtime_str = f"⏱️: {int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
