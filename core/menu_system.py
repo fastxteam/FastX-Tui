@@ -85,8 +85,24 @@ class MenuNode(MenuItem):
     icon: str = "📁"
 
     def add_item(self, item: Union[str, MenuItem, 'MenuNode']):
-        """添加菜单项"""
-        self.items.append(item)
+        """添加菜单项，避免重复"""
+        # 检查菜单项是否已存在
+        if isinstance(item, str):
+            # 字符串ID
+            if item not in self.items:
+                self.items.append(item)
+        else:
+            # 菜单项对象，检查ID
+            item_id = item.id
+            for existing in self.items:
+                if isinstance(existing, str):
+                    if existing == item_id:
+                        return
+                else:
+                    if existing.id == item_id:
+                        return
+            # 如果不存在，添加
+            self.items.append(item)
 
     def get_display_items(self, menu_system: Optional['MenuSystem'] = None) -> List[MenuItem]:
         """获取显示的项目列表"""
