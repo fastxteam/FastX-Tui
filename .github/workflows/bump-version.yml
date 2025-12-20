@@ -1,40 +1,34 @@
-name: Bump Version
+name: Bump Version and Release
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
   bump-version:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
       - name: Install uv
         run: python -m pip install uv
-        
-      - name: Sync dependencies with uv
-        run: uv sync
-        
-      - name: Install additional dependencies
-        run: uv add toml
 
-      - name: Install directory dependencies
-        run: |
-          pip install toml
+      - name: Install toml
+        run: uv add toml
 
       - name: Bump version
         id: bump_version
@@ -97,27 +91,220 @@ jobs:
                               json.dump(lang_data, f, indent=2, ensure_ascii=False, sort_keys=False)
                           print(f"Updated version in {file_path}")
           
-          # Output new version for next steps
-          print(f"::set-output name=new_version::{new_version}")
+          # 使用 GITHUB_OUTPUT 设置输出
+          print(f"new_version={new_version}")
         shell: python
-      
+        env:
+          GITHUB_OUTPUT: ${{ runner.temp }}/github_output.txt
+
       - name: Commit and push version bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pyproject.toml
+          git add locales/*.json 2>/dev/null || true
           git commit -m "Bump version to v${{ steps.bump_version.outputs.new_version }}"
           git push origin main
-      
+
       - name: Create tag
         id: create_tag
         run: |
           tag_name="v${{ steps.bump_version.outputs.new_version }}"
+          echo "Creating tag: $tag_name"
           git tag $tag_name
           git push origin $tag_name
-          echo "::set-output name=tag_name::$tag_name"
-      
-      - name: Print results
+          echo "tag_name=$tag_name" >> $GITHUB_ENV
+          echo "tag_name=$tag_name" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_OUTPUT: ${{ runner.temp }}/github_output.txt
+
+    outputs:
+      tag_name: ${{ steps.create_tag.outputs.tag_name }}
+      new_version: ${{ steps.bump_version.outputs.new_version }}
+
+  build-windows:
+    needs: bump-version
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.bump-version.outputs.tag_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install uv
+        run: python -m pip install uv
+
+      - name: Sync dependencies with uv
+        run: uv sync
+
+      - name: Install build tools
+        run: uv add pyinstaller build toml
+
+      - name: Build wheel and sdist
+        run: python -m build
+
+      - name: Build Windows executable with PyInstaller
+        run: pyinstaller --onefile --name fastx main.py
+
+      - name: List artifacts
+        run: dir dist /s
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            dist/fastx.exe
+            dist/*.whl
+            dist/*.tar.gz
+          retention-days: 7
+
+  build-linux:
+    needs: bump-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.bump-version.outputs.tag_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install uv
+        run: python -m pip install uv
+
+      - name: Sync dependencies with uv
+        run: uv sync
+
+      - name: Install build tools
+        run: uv add pyinstaller build toml
+
+      - name: Build wheel and sdist
+        run: python -m build
+
+      - name: Build Linux executable with PyInstaller
+        run: pyinstaller --onefile --name fastx-linux main.py
+
+      - name: List artifacts
+        run: ls -la dist/
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            dist/fastx-linux
+            dist/*.whl
+            dist/*.tar.gz
+          retention-days: 7
+
+  create-release:
+    needs: [bump-version, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.bump-version.outputs.tag_name }}
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build
+
+      - name: Prepare release files
         run: |
-          echo "New version: ${{ steps.bump_version.outputs.new_version }}"
-          echo "New tag: ${{ steps.create_tag.outputs.tag_name }}"
+          # 创建发布目录
+          mkdir -p release-files
+          
+          # 复制 Windows 文件
+          mv fastx.exe release-files/ 2>/dev/null || true
+          mv *.whl release-files/ 2>/dev/null || true
+          mv *.tar.gz release-files/ 2>/dev/null || true
+          
+          # 复制 Linux 文件
+          mv fastx-linux release-files/ 2>/dev/null || true
+          
+          # 检查文件是否存在
+          echo "Release files:"
+          ls -la release-files/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.bump-version.outputs.tag_name }}
+          name: "Release ${{ needs.bump-version.outputs.tag_name }}"
+          body: |
+            # Release v${{ needs.bump-version.outputs.new_version }}
+            
+            🚀 Automated release created on ${{ github.event.head_commit.timestamp }}
+            
+            ## 📦 Assets
+            
+            ### Windows
+            - **fastx.exe** - Standalone Windows executable
+            - **fastx_tui-${{ needs.bump-version.outputs.new_version }}-py3-none-any.whl** - Python wheel
+            - **fastx_tui-${{ needs.bump-version.outputs.new_version }}.tar.gz** - Source distribution
+            
+            ### Linux
+            - **fastx-linux** - Standalone Linux executable
+            
+            ## 🔧 Installation
+            
+            ### Windows
+            ```bash
+            # Using pip
+            pip install fastx_tui-${{ needs.bump-version.outputs.new_version }}-py3-none-any.whl
+            
+            # Or download the executable
+            # Run: fastx.exe
+            ```
+            
+            ### Linux
+            ```bash
+            # Make executable and run
+            chmod +x fastx-linux
+            ./fastx-linux
+            ```
+            
+            ## 📝 Changes
+            - Version bump to ${{ needs.bump-version.outputs.new_version }}
+            - Automated build and release
+            
+            ---
+            
+            *This release was automatically generated by GitHub Actions.*
+          draft: false
+          prerelease: false
+          files: |
+            release-files/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          generate_release_notes: true  # 自动生成发布说明
