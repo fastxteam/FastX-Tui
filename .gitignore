@@ -4,3 +4,4 @@
 __pycache__/
 /dist/
 /fastx_tui.egg-info/
+/plugins/

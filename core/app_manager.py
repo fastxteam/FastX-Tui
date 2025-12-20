@@ -358,13 +358,18 @@ class AppManager:
         if "plugins_menu" in main_menu.items:
             main_menu.items.remove("plugins_menu")
         
-        # 添加所有已注册的插件命令到插件主菜单
+        # 添加所有已注册的插件命令和子菜单到插件主菜单
         plugin_items_added = False
         for item_id, item in self.menu_system.items.items():
-            # 跳过已经添加过的项目、固定项和插件自己创建的子菜单
+            # 跳过已经添加过的项目和固定项
             if item_id not in ["main_menu", "system_tools_menu", "file_tools_menu", "python_tools_menu", "show_config", "plugin_manager", "clear_screen", "show_help", "exit_app", "plugins_menu"]:
-                # 只添加真正的插件命令（MenuItem或ActionItem），不添加MenuNode类型的子菜单
-                if not isinstance(item, MenuNode):
+                # 添加所有插件创建的项目，包括MenuNode类型的子菜单
+                if isinstance(item, MenuNode):
+                    # 插件创建的子菜单，直接添加到插件主菜单
+                    plugins_menu.add_item(item_id)
+                    plugin_items_added = True
+                else:
+                    # 插件命令，直接添加到插件主菜单
                     plugins_menu.add_item(item_id)
                     plugin_items_added = True
         
