@@ -156,7 +156,6 @@ class PluginManager:
             
             # 将插件目录添加到模块的搜索路径中，以便插件可以导入自己的子模块
             if is_repo_plugin:
-                module.__path__.append(plugin_path)
                 sys.path.insert(0, plugin_path)
             
             spec.loader.exec_module(module)
