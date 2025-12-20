@@ -76,6 +76,18 @@ jobs:
           with open('pyproject.toml', 'w') as f:
               toml.dump(data, f)
           
+          # Update version in version.py
+          version_file_path = 'core/version.py'
+          with open(version_file_path, 'r', encoding='utf-8') as f:
+              version_content = f.read()
+          
+          # Replace the default version value
+          version_content = version_content.replace('return "0.1.0"', f'return "{new_version}"')
+          
+          with open(version_file_path, 'w', encoding='utf-8') as f:
+              f.write(version_content)
+          print(f"Updated version in {version_file_path}")
+          
           # Update version in all language files
           locales_dir = 'locales'
           if os.path.exists(locales_dir):

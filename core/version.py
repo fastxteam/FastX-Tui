@@ -6,13 +6,17 @@
 from typing import Dict, Any
 import toml
 import os
+import importlib.metadata
 
 # 项目根目录
 get_root_dir = lambda: os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def get_version() -> str:
-    """从pyproject.toml获取当前版本号"""
+    """获取当前版本号
+    优先从pyproject.toml获取，如果失败则尝试从已安装的包元数据获取
+    """
+    # 尝试从pyproject.toml获取
     pyproject_path = os.path.join(get_root_dir(), 'pyproject.toml')
     
     try:
@@ -20,8 +24,13 @@ def get_version() -> str:
             data = toml.load(f)
         return data['project']['version']
     except Exception as e:
-        print(f"获取版本号失败: {e}")
-        return "0.1.0"
+        # pyproject.toml不存在或读取失败，尝试从包元数据获取
+        try:
+            # 从已安装的包元数据获取版本
+            return importlib.metadata.version('fastx-tui')
+        except Exception as e2:
+            # 所有方式都失败，返回默认值（这个值会被bump工作流自动更新）
+            return "0.1.0"
 
 
 def get_version_info() -> Dict[str, Any]:
