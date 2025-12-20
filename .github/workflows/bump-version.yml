@@ -31,7 +31,14 @@ jobs:
         
       - name: Install additional dependencies
         run: uv add toml
-      
+
+      - name: Install directory dependencies
+        run: |
+          pip install toml
+          pip install json
+          pip install os
+          pip install subprocess
+
       - name: Bump version
         id: bump_version
         run: |

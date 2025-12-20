@@ -28,6 +28,11 @@ jobs:
       - name: Install additional build dependencies
         run: uv add pyinstaller build toml
 
+      - name: Install directory dependencies
+        run: |
+          pip install toml
+          pip install os
+        
       - name: Extract version from pyproject.toml
         id: extract_version
         run: |
