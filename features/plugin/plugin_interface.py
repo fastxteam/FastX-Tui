@@ -166,32 +166,16 @@ class PluginInterface:
         self.console.print("🌐 浏览在线插件".center(80), style="bold green")
         self.console.print("=" * 80)
         
-        # 获取分类列表
-        categories = self.plugin_repo.get_categories()
+        # 直接获取所有插件，跳过分类选择
+        self.console.print("正在获取所有插件...")
+        plugins = self.plugin_repo.get_plugins()
         
-        self.console.print("📋 插件分类:")
-        for i, category in enumerate(categories, 1):
-            self.console.print(f"{i}. {category}")
-        
-        self.console.print("0. 所有插件")
+        # 支持搜索功能
         self.console.print()
-        
-        # 获取用户选择的分类
-        choice = self.console.input("请选择分类编号: ")
-        
-        category = ""
-        if choice != '0':
-            try:
-                idx = int(choice) - 1
-                if 0 <= idx < len(categories):
-                    category = categories[idx]
-            except (ValueError, IndexError):
-                self.console.print("[red]无效的分类编号[/red]")
-                return
-        
-        # 获取并显示插件列表
-        self.console.print(f"\n正在获取 {category if category else '所有'} 插件...")
-        plugins = self.plugin_repo.get_plugins(category=category)
+        search_query = self.console.input("搜索插件 (直接回车跳过): ")
+        if search_query:
+            self.console.print(f"\n正在搜索 '{search_query}' 插件...")
+            plugins = self.plugin_repo.get_plugins(search=search_query)
         
         if plugins['plugins']:
             self.console.print(f"\n找到 {plugins['total']} 个插件:")

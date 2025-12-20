@@ -351,24 +351,13 @@ class PluginRepository:
         self.cache = {}
         self.cache_time = 0
         
-        # 示例插件数据，作为在线插件商店的首个仓库
-        self.example_plugins = [
-            {
-                "id": "example-plugin",
-                "name": "示例插件",
-                "version": "1.0.0",
-                "author": "FastX Team",
-                "description": "这是一个FastX-Tui插件系统的示例插件，展示了插件的基本功能和最佳实践。",
-                "category": "开发",
-                "tags": ["示例", "开发", "模板"],
-                "rating": 4.8,
-                "downloads": 1000,
-                "repository": "https://github.com/fastxteam/FastX-Tui-Plugin-Example.git",
-                "homepage": "https://github.com/fastxteam/FastX-Tui-Plugin-Example",
-                "license": "MIT",
-                "last_updated": "2025-12-21"
-            }
+        # 示例插件仓库列表，只包含仓库地址，信息通过get_plugin_info_from_github动态获取
+        self.example_plugin_repos = [
+            "https://github.com/fastxteam/FastX-Tui-Plugin-Example.git"
         ]
+        
+        # 缓存插件信息
+        self.plugin_info_cache = {}
     
     def get_plugins(self, category: str = "", search: str = "", page: int = 1, per_page: int = 20) -> Dict[str, Any]:
         """获取插件列表"""
@@ -387,9 +376,23 @@ class PluginRepository:
             
             return response.json()
         except Exception as e:
-            self.logger.error(f"获取插件列表失败: {str(e)}")
-            # 返回示例插件数据作为备选
-            plugins = self.example_plugins
+            self.logger.debug(f"获取插件列表失败: {str(e)}")
+            # 从示例插件仓库动态获取插件信息
+            plugins = []
+            
+            for repo_url in self.example_plugin_repos:
+                # 检查缓存中是否已有该插件信息
+                if repo_url in self.plugin_info_cache:
+                    plugin_info = self.plugin_info_cache[repo_url]
+                else:
+                    # 从GitHub获取插件信息
+                    plugin_info = self.get_plugin_info_from_github(repo_url)
+                    if plugin_info:
+                        # 缓存插件信息
+                        self.plugin_info_cache[repo_url] = plugin_info
+                
+                if plugin_info:
+                    plugins.append(plugin_info)
             
             # 按分类过滤
             if category:
@@ -518,11 +521,31 @@ class PluginRepository:
             
             return response.json()
         except Exception as e:
-            self.logger.error(f"获取插件详情失败: {str(e)}")
-            # 从示例插件中查找
-            for plugin in self.example_plugins:
+            self.logger.debug(f"获取插件详情失败: {str(e)}")
+            
+            # 先确保插件信息已加载
+            for repo_url in self.example_plugin_repos:
+                if repo_url not in self.plugin_info_cache:
+                    plugin_info = self.get_plugin_info_from_github(repo_url)
+                    if plugin_info:
+                        self.plugin_info_cache[repo_url] = plugin_info
+            
+            # 从缓存中查找插件详情
+            plugins = list(self.plugin_info_cache.values())
+            
+            # 按ID查找
+            for plugin in plugins:
                 if plugin["id"] == plugin_id:
                     return plugin
+            
+            # 如果插件ID是数字，可能是用户输入的编号，尝试转换
+            try:
+                idx = int(plugin_id) - 1
+                if 0 <= idx < len(plugins):
+                    return plugins[idx]
+            except ValueError:
+                pass
+            
             return None
     
     def install_plugin(self, plugin_id: str, plugin_manager: "PluginManager") -> bool:
@@ -554,8 +577,25 @@ class PluginRepository:
             
             return response.json().get("categories", [])
         except Exception as e:
-            self.logger.error(f"获取插件分类失败: {str(e)}")
-            return ["其他", "工具", "主题", "集成", "开发"]
+            self.logger.debug(f"获取插件分类失败: {str(e)}")
+            # 从动态获取的插件信息中提取分类
+            categories = set()
+            
+            # 先确保插件信息已加载
+            for repo_url in self.example_plugin_repos:
+                if repo_url not in self.plugin_info_cache:
+                    plugin_info = self.get_plugin_info_from_github(repo_url)
+                    if plugin_info:
+                        self.plugin_info_cache[repo_url] = plugin_info
+                
+                if repo_url in self.plugin_info_cache:
+                    categories.add(self.plugin_info_cache[repo_url].get("category", "其他"))
+            
+            # 添加默认分类并转为列表
+            default_categories = ["其他", "工具", "主题", "集成", "开发"]
+            # 合并分类，去重并排序
+            all_categories = sorted(list(set(default_categories + list(categories))))
+            return all_categories
     
     def update_plugin(self, plugin_id: str, plugin_manager: "PluginManager") -> bool:
         """更新插件"""
