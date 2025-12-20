@@ -91,13 +91,9 @@ jobs:
                               json.dump(lang_data, f, indent=2, ensure_ascii=False, sort_keys=False)
                           print(f"Updated version in {file_path}")
           
-          # 方法1：使用 GITHUB_OUTPUT 文件（推荐）
-          output_file = os.environ['GITHUB_OUTPUT']
-          with open(output_file, 'a') as f:
+          # 使用新的 GITHUB_OUTPUT 语法
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f'new_version={new_version}\n')
-          
-          # 方法2：或者使用旧语法（兼容性更好）
-          print(f"::set-output name=new_version::{new_version}")
         shell: python
 
       - name: Debug output
@@ -141,9 +137,8 @@ jobs:
           git tag $tag_name
           git push origin $tag_name
           
-          # 输出 tag_name
-          echo "tag_name=$tag_name"
-          echo "::set-output name=tag_name::$tag_name"
+          # 使用新的 GITHUB_OUTPUT 语法
+          echo "tag_name=$tag_name" >> $GITHUB_OUTPUT
 
     outputs:
       tag_name: ${{ steps.create_tag.outputs.tag_name }}
@@ -154,7 +149,6 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
-      id-token: write
 
     steps:
       - name: Checkout code
@@ -184,8 +178,10 @@ jobs:
       - name: Build Windows executable with PyInstaller
         run: uv run pyinstaller --onefile --name fastx main.py
 
-      - name: List artifacts
-        run: dir dist /s
+      - name: List artifacts (Windows)
+        run: |
+          # PowerShell 语法
+          Get-ChildItem -Path dist -Recurse
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -231,7 +227,10 @@ jobs:
       - name: Build Linux executable with PyInstaller
         run: uv run pyinstaller --onefile --name fastx-linux main.py
 
-      - name: List artifacts
+      - name: Make executable
+        run: chmod +x dist/fastx-linux
+
+      - name: List artifacts (Linux)
         run: ls -la dist/
 
       - name: Upload Linux artifacts
