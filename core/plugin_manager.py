@@ -421,90 +421,85 @@ class PluginRepository:
     def get_plugin_info_from_github(self, repo_url: str) -> Optional[Dict[str, Any]]:
         """从GitHub仓库获取插件信息，自动读取fastx_plugin.py"""
         try:
-            import requests
+            import tempfile
+            import os
+            import sys
+            import subprocess
+            import importlib.util
             
-            # 转换仓库URL为raw内容URL
-            # https://github.com/user/repo.git -> https://raw.githubusercontent.com/user/repo/main/fastx_plugin.py
-            repo_url = repo_url.rstrip('.git')
-            if 'github.com/' in repo_url:
-                # 提取用户名和仓库名
-                parts = repo_url.split('github.com/')[1].split('/')
-                if len(parts) >= 2:
-                    user = parts[0]
-                    repo = parts[1]
-                    
-                    # 尝试读取main分支的fastx_plugin.py
-                    raw_url = f"https://raw.githubusercontent.com/{user}/{repo}/main/fastx_plugin.py"
-                    response = requests.get(raw_url, timeout=5)
-                    
-                    if response.status_code == 200:
-                        # 解析插件信息
-                        plugin_code = response.text
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # 克隆仓库到临时目录
+                repo_name = repo_url.rstrip('.git').split('/')[-1]
+                clone_dir = os.path.join(temp_dir, repo_name)
+                
+                # 执行git clone命令
+                subprocess.run([
+                    'git', 'clone', 
+                    '--depth', '1',  # 只克隆最新的提交，加快速度
+                    repo_url, 
+                    clone_dir
+                ], check=True, timeout=30, capture_output=True, text=True)
+                
+                # 检查fastx_plugin.py是否存在
+                fastx_plugin_path = os.path.join(clone_dir, 'fastx_plugin.py')
+                if not os.path.exists(fastx_plugin_path):
+                    self.logger.error(f"仓库 {repo_url} 中没有找到fastx_plugin.py")
+                    return None
+                
+                # 添加克隆目录到sys.path，这样插件的依赖模块才能被找到
+                sys.path.insert(0, clone_dir)
+                
+                try:
+                    # 动态导入插件模块
+                    spec = importlib.util.spec_from_file_location(
+                        "temp_plugin",
+                        fastx_plugin_path
+                    )
+                    if spec and spec.loader:
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
                         
-                        # 使用临时文件来执行代码并获取插件信息
-                        import tempfile
-                        import os
-                        import sys
-                        import importlib.util
-                        
-                        with tempfile.TemporaryDirectory() as temp_dir:
-                            # 创建临时插件文件
-                            temp_file = os.path.join(temp_dir, "fastx_plugin.py")
-                            with open(temp_file, 'w', encoding='utf-8') as f:
-                                f.write(plugin_code)
-                            
-                            # 添加临时目录到sys.path
-                            sys.path.insert(0, temp_dir)
-                            
-                            try:
-                                # 动态导入插件模块
-                                spec = importlib.util.spec_from_file_location(
-                                    "temp_plugin",
-                                    temp_file
-                                )
-                                if spec and spec.loader:
-                                    module = importlib.util.module_from_spec(spec)
-                                    spec.loader.exec_module(module)
-                                    
-                                    # 查找插件类
-                                    for attr_name in dir(module):
-                                        attr = getattr(module, attr_name)
-                                        if (isinstance(attr, type) and 
-                                            hasattr(attr, "get_info") and 
-                                            callable(getattr(attr, "get_info"))):
-                                            # 实例化插件并获取信息
-                                            plugin_instance = attr()
-                                            plugin_info = plugin_instance.get_info()
-                                            
-                                            # 转换为字典
-                                            return {
-                                                "id": f"{user}-{repo}",
-                                                "name": plugin_info.name,
-                                                "version": plugin_info.version,
-                                                "author": plugin_info.author,
-                                                "description": plugin_info.description,
-                                                "category": plugin_info.category,
-                                                "tags": plugin_info.tags,
-                                                "rating": plugin_info.rating,
-                                                "downloads": plugin_info.downloads,
-                                                "repository": repo_url,
-                                                "homepage": repo_url,
-                                                "license": plugin_info.license,
-                                                "last_updated": plugin_info.last_updated
-                                            }
-                            except Exception as e:
-                                self.logger.error(f"解析GitHub插件信息失败: {str(e)}")
-                            finally:
-                                # 从sys.path中移除临时目录
-                                sys.path.pop(0)
-                    
-                    # 尝试读取master分支
-                    raw_url = f"https://raw.githubusercontent.com/{user}/{repo}/master/fastx_plugin.py"
-                    response = requests.get(raw_url, timeout=5)
-                    
-                    if response.status_code == 200:
-                        # 同样的解析逻辑，这里简化处理
-                        self.logger.error("master分支找到fastx_plugin.py，但暂不支持")
+                        # 查找插件类
+                        for attr_name in dir(module):
+                            attr = getattr(module, attr_name)
+                            if (isinstance(attr, type) and 
+                                hasattr(attr, "get_info") and 
+                                callable(getattr(attr, "get_info"))):
+                                # 实例化插件并获取信息
+                                plugin_instance = attr()
+                                plugin_info = plugin_instance.get_info()
+                                
+                                # 提取用户名和仓库名用于生成ID
+                                repo_url_clean = repo_url.rstrip('.git')
+                                if 'github.com/' in repo_url_clean:
+                                    parts = repo_url_clean.split('github.com/')[1].split('/')
+                                    if len(parts) >= 2:
+                                        user = parts[0]
+                                        repo = parts[1]
+                                        
+                                        # 转换为字典
+                                        return {
+                                            "id": f"{user}-{repo}",
+                                            "name": plugin_info.name,
+                                            "version": plugin_info.version,
+                                            "author": plugin_info.author,
+                                            "description": plugin_info.description,
+                                            "category": plugin_info.category,
+                                            "tags": plugin_info.tags,
+                                            "rating": plugin_info.rating,
+                                            "downloads": plugin_info.downloads,
+                                            "repository": repo_url,
+                                            "homepage": repo_url,
+                                            "license": plugin_info.license,
+                                            "last_updated": plugin_info.last_updated
+                                        }
+                except Exception as e:
+                    self.logger.error(f"解析GitHub插件信息失败: {str(e)}")
+                finally:
+                    # 从sys.path中移除克隆目录
+                    sys.path.pop(0)
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"克隆GitHub仓库失败: {e.stderr}")
         except Exception as e:
             self.logger.error(f"从GitHub获取插件信息失败: {str(e)}")
         
