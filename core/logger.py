@@ -10,7 +10,7 @@ from loguru import logger
 class Logger:
     """统一日志管理器"""
     
-    def __init__(self, name: str = "FastX", log_level: str = "INFO"):
+    def __init__(self, name: str = "fastx-tui", log_level: str = "INFO"):
         self.name = name
         self.log_level = log_level.upper()
         
@@ -32,7 +32,7 @@ class Logger:
         
         # 添加文件处理器
         logger.add(
-            os.path.join(log_dir, "fastx.log"),
+            os.path.join(log_dir, "fastx-tui.log"),
             level="DEBUG",  # 文件日志记录所有级别
             format="{time:YYYY-MM-DD HH:mm:ss} [{level}] [{name}] {message}",
             enqueue=True,
@@ -61,7 +61,7 @@ class Logger:
             os.makedirs(log_dir)
         
         logger.add(
-            os.path.join(log_dir, "fastx.log"),
+            os.path.join(log_dir, "fastx-tui.log"),
             level="DEBUG",  # 文件日志记录所有级别
             format="{time:YYYY-MM-DD HH:mm:ss} [{level}] [{name}] {message}",
             enqueue=True,

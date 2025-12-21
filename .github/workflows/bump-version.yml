@@ -188,7 +188,7 @@ jobs:
         run: uv run python -m build  # 使用 uv 环境运行
 
       - name: Build Windows executable with PyInstaller
-        run: uv run pyinstaller --onefile --name fastx main.py
+        run: uv run pyinstaller --onefile --name fastx-tui main.py
 
       - name: List artifacts (Windows)
         run: |
@@ -200,7 +200,7 @@ jobs:
         with:
           name: windows-build
           path: |
-            dist/fastx.exe
+            dist/fastx-tui.exe
             dist/*.whl
             dist/*.tar.gz
           retention-days: 7
@@ -237,10 +237,10 @@ jobs:
         run: uv run python -m build  # 使用 uv 环境运行
 
       - name: Build Linux executable with PyInstaller
-        run: uv run pyinstaller --onefile --name fastx-linux main.py
+        run: uv run pyinstaller --onefile --name fastx-tui-linux main.py
 
       - name: Make executable
-        run: chmod +x dist/fastx-linux
+        run: chmod +x dist/fastx-tui-linux
 
       - name: List artifacts (Linux)
         run: ls -la dist/
@@ -250,7 +250,7 @@ jobs:
         with:
           name: linux-build
           path: |
-            dist/fastx-linux
+            dist/fastx-tui-linux
             dist/*.whl
             dist/*.tar.gz
           retention-days: 7
@@ -284,12 +284,12 @@ jobs:
           mkdir -p release-files
           
           # 复制 Windows 文件
-          mv fastx.exe release-files/ 2>/dev/null || true
+          mv fastx-tui.exe release-files/ 2>/dev/null || true
           mv *.whl release-files/ 2>/dev/null || true
           mv *.tar.gz release-files/ 2>/dev/null || true
           
           # 复制 Linux 文件
-          mv fastx-linux release-files/ 2>/dev/null || true
+          mv fastx-tui-linux release-files/ 2>/dev/null || true
           
           # 检查文件是否存在
           echo "Release files:"
@@ -308,12 +308,12 @@ jobs:
             ## 📦 Assets
             
             ### Windows
-            - **fastx.exe** - Standalone Windows executable
+            - **fastx-tui.exe** - Standalone Windows executable
             - **fastx_tui-${{ needs.bump-version.outputs.new_version }}-py3-none-any.whl** - Python wheel
             - **fastx_tui-${{ needs.bump-version.outputs.new_version }}.tar.gz** - Source distribution
             
             ### Linux
-            - **fastx-linux** - Standalone Linux executable
+            - **fastx-tui-linux** - Standalone Linux executable
             
             ## 🔧 Installation
             
@@ -323,14 +323,14 @@ jobs:
             pip install fastx_tui-${{ needs.bump-version.outputs.new_version }}-py3-none-any.whl
             
             # Or download the executable
-            # Run: fastx.exe
+            # Run: fastx-tui.exe
             ```
             
             ### Linux
             ```bash
             # Make executable and run
-            chmod +x fastx-linux
-            ./fastx-linux
+            chmod +x fastx-tui-linux
+            ./fastx-tui-linux
             ```
             
             ## 📝 Changes
