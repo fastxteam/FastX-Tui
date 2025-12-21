@@ -23,7 +23,7 @@ class LogManager:
         self.console = console
         self.config_manager = config_manager
         # 使用绝对路径确保日志文件路径正确
-        self.log_file = os.path.join(os.getcwd(), "logs", "fastx.log")
+        self.log_file = os.path.join(os.getcwd(), "logs", "fastx-tui.log")
         self.page_size = 500
         self.current_page = 1
         self.filter_level = None

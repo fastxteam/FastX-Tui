@@ -223,7 +223,7 @@ class UpdateManager:
                 return False
             
             # 下载新版本到当前目录
-            new_exe_path = os.path.join(current_exe_dir, f"fastx_new.exe")
+            new_exe_path = os.path.join(current_exe_dir, f"fastx-tui_new.exe")
             if self.console:
                 self.console.print(f"[cyan]正在下载新版本: {exe_url}[/cyan]")
             
@@ -242,7 +242,7 @@ class UpdateManager:
                 self.console.print("[green]新版本下载成功[/green]")
             
             # 创建批处理脚本用于更新
-            batch_script_path = os.path.join(current_exe_dir, f"fastx_update.bat")
+            batch_script_path = os.path.join(current_exe_dir, f"fastx-tui_update.bat")
             
             # 批处理脚本内容
             batch_content = f'''
@@ -340,9 +340,9 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
         current_platform = platform.system()
         
         if current_platform == "Windows":
-            asset_name = "fastx.exe"
+            asset_name = "fastx-tui.exe"
         elif current_platform == "Linux":
-            asset_name = "fastx-linux"
+            asset_name = "fastx-tui-linux"
         else:
             logger.error(f"不支持的平台: {current_platform}")
             if self.console:

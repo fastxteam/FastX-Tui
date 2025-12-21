@@ -76,7 +76,7 @@ class UserPreferences:
 class ConfigManager:
     """配置管理器"""
     
-    def __init__(self, config_dir: str = ".fastx"):
+    def __init__(self, config_dir: str = ".fastx-tui"):
         self.config_dir = Path.home() / config_dir
         self.config_file = self.config_dir / "config.json"
         self.prefs_file = self.config_dir / "preferences.json"

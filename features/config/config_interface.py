@@ -292,11 +292,11 @@ class ConfigInterface:
         self.console.print("📤 导出配置".center(80), style="bold green")
         self.console.print("-" * 80)
         
-        self.console.print("请输入导出文件名 (默认: fastx_config.json): ", style="white", end="")
+        self.console.print("请输入导出文件名 (默认: fastx-tui_config.json): ", style="white", end="")
         filename = input().strip()
         
         if not filename:
-            filename = "fastx_config.json"
+            filename = "fastx-tui_config.json"
         
         if self.config_manager.export_config(filename):
             self.console.print(f"\n✅ 配置已成功导出到: {os.path.abspath(filename)}", style="bold green")
