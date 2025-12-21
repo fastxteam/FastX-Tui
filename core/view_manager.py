@@ -364,6 +364,7 @@ class ViewManager:
             self.console.print(
                 Panel(
                     update_message,
+                    box = box.DOUBLE,
                     border_style="#F9E2AF",
                     expand=True,
                     width=120

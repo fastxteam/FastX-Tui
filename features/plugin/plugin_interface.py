@@ -516,20 +516,20 @@ class PluginInterface:
                     # 禁用插件
                     success = self.plugin_manager.disable_plugin(plugin_name)
                     if success:
-                        self.console.print(f"\n[green]✅ 插件 {plugin_info['display_name']} 已成功禁用[/green]")
+                        self.console.print(f"\n[green]✅ 插件 {plugin_info['name']} 已成功禁用[/green]")
                         # 重新加载插件并重建菜单
                         self._reload_plugins()
                     else:
-                        self.console.print(f"\n[red]❌ 禁用插件 {plugin_info['display_name']} 失败[/red]")
+                        self.console.print(f"\n[red]❌ 禁用插件 {plugin_info['name']} 失败[/red]")
                 else:
                     # 启用插件
                     success = self.plugin_manager.enable_plugin(plugin_name)
                     if success:
-                        self.console.print(f"\n[green]✅ 插件 {plugin_info['display_name']} 已成功启用[/green]")
+                        self.console.print(f"\n[green]✅ 插件 {plugin_info['name']} 已成功启用[/green]")
                         # 重新加载插件并重建菜单
                         self._reload_plugins()
                     else:
-                        self.console.print(f"\n[red]❌ 启用插件 {plugin_info['display_name']} 失败[/red]")
+                        self.console.print(f"\n[red]❌ 启用插件 {plugin_info['name']} 失败[/red]")
             else:
                 self.console.print(f"\n[red]❌ 无效的插件编号[/red]")
         except ValueError:
@@ -549,7 +549,7 @@ class PluginInterface:
         
         # 显示插件列表供选择
         for i, plugin_info in enumerate(plugins, 1):
-            self.console.print(f"{i}. {plugin_info['display_name']} v{plugin_info['version']}")
+            self.console.print(f"{i}. {plugin_info['name']} v{plugin_info['version']}")
         
         self.console.print("0. 返回")
         self.console.print()
@@ -568,17 +568,17 @@ class PluginInterface:
                 
                 # 确认卸载
                 from rich.prompt import Confirm
-                confirm = Confirm.ask(f"\n是否确定要卸载插件 {plugin_info['display_name']}?")
+                confirm = Confirm.ask(f"\n是否确定要卸载插件 {plugin_info['name']}?")
                 if confirm:
                     success = self.plugin_manager.uninstall_plugin(plugin_name)
                     if success:
-                        self.console.print(f"\n[green]✅ 插件 {plugin_info['display_name']} 已成功卸载[/green]")
+                        self.console.print(f"\n[green]✅ 插件 {plugin_info['name']} 已成功卸载[/green]")
                         # 重新加载插件并重建菜单
                         self._reload_plugins()
                     else:
-                        self.console.print(f"\n[red]❌ 卸载插件 {plugin_info['display_name']} 失败[/red]")
+                        self.console.print(f"\n[red]❌ 卸载插件 {plugin_info['name']} 失败[/red]")
                 else:
-                    self.console.print(f"\n[yellow]已取消卸载插件 {plugin_info['display_name']}[/yellow]")
+                    self.console.print(f"\n[yellow]已取消卸载插件 {plugin_info['name']}[/yellow]")
             else:
                 self.console.print(f"\n[red]❌ 无效的插件编号[/red]")
         except ValueError:

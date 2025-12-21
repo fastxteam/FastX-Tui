@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from .menu_system import MenuSystem, ActionItem, CommandType
 from .logger import get_logger
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 
 @dataclass
 class PluginInfo:
@@ -235,20 +236,56 @@ class PluginManager:
             self.logger.debug(f"插件加载错误详细信息: {traceback.format_exc()}")
             return None
     
-    def load_all_plugins(self) -> Dict[str, Plugin]:
+    def load_all_plugins(self, console=None) -> Dict[str, Plugin]:
         """加载所有插件"""
         plugin_names = self.discover_plugins()
         self.all_plugins = plugin_names
         
-        for plugin_name in plugin_names:
-            # 检查插件是否被启用
-            plugin_config = self.get_plugin_config(plugin_name)
-            enabled = plugin_config.get("enabled", True)
-            
-            if enabled:
-                self.load_plugin(plugin_name)
-            else:
-                self.logger.info(f"插件 {plugin_name} 已被禁用，跳过加载")
+        if console:
+            # 使用rich.progress显示多任务进度
+            console.print("\n📌 [bold]多任务进度:[/bold]")
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            ) as progress:
+                # 创建进度任务
+                tasks = [
+                    progress.add_task("[red]发现插件...", total=len(plugin_names)),
+                    progress.add_task("[green]加载插件...", total=len(plugin_names)),
+                    progress.add_task("[blue]初始化...", total=len(plugin_names)),
+                ]
+                
+                # 模拟进度更新
+                for i, plugin_name in enumerate(plugin_names):
+                    # 更新发现进度
+                    progress.update(tasks[0], advance=1)
+                    
+                    # 检查插件是否被启用
+                    plugin_config = self.get_plugin_config(plugin_name)
+                    enabled = plugin_config.get("enabled", True)
+                    
+                    if enabled:
+                        self.load_plugin(plugin_name)
+                        # 更新加载进度
+                        progress.update(tasks[1], advance=1)
+                    else:
+                        self.logger.info(f"插件 {plugin_name} 已被禁用，跳过加载")
+                    
+                    # 更新初始化进度
+                    progress.update(tasks[2], advance=1)
+        else:
+            # 无console时的原始逻辑
+            for plugin_name in plugin_names:
+                # 检查插件是否被启用
+                plugin_config = self.get_plugin_config(plugin_name)
+                enabled = plugin_config.get("enabled", True)
+                
+                if enabled:
+                    self.load_plugin(plugin_name)
+                else:
+                    self.logger.info(f"插件 {plugin_name} 已被禁用，跳过加载")
         
         return self.plugins
     
