@@ -458,8 +458,10 @@ class ViewManager:
         
         # 显示菜单标题、描述和面包屑
         self.console.print(Panel(
-            f"[bold]{menu_node.name}[/bold]\n{menu_node.description}",
-            box=box.ROUNDED,
+            f"> {menu_node.description}",
+            title=f"[bold]{menu_node.name}[/bold]",
+            title_align="left",
+            box=box.DOUBLE,
             style="cyan",
             width=120
         ))
