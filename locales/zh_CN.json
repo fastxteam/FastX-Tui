@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "FastX TUI",
-    "version": "v0.1.28",
+    "version": "v0.1.29",
     "description": "终端工具集",
     "author": "FastX Team",
     "welcome": "欢迎使用 {app_name} {version}",
