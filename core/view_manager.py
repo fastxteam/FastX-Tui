@@ -12,6 +12,7 @@ from rich.console import Console
 from rich.layout import Layout
 from rich.panel import Panel
 from rich.text import Text
+from rich.table import Table
 from rich import box
 
 from .menu_system import MenuNode, ActionItem, MenuType, CommandType
@@ -451,27 +452,13 @@ class ViewManager:
             self.console.print("[yellow]此菜单当前没有可用的项目[/yellow]\n")
             return
         
-        # 创建表格显示菜单项
-        from rich.table import Table
-        from rich.panel import Panel
-        
-        
         # 显示菜单标题、描述和面包屑
-        self.console.print(Panel(
-            f"> {menu_node.description}",
-            title=f"[bold]{menu_node.name}[/bold]",
-            title_align="left",
-            box=box.DOUBLE,
-            style="cyan",
-            width=120
-        ))
-        self.console.print()
-        
+        # 创建表格显示菜单项
         table = Table(
             box=box.SIMPLE,
             show_header=True,
             header_style="bold white",
-            width=120
+            width=116
         )
         
         table.add_column("编号", style="cyan bold", justify="center")
@@ -497,4 +484,14 @@ class ViewManager:
                 style=style
             )
         
-        self.console.print(table)
+        # 实现Panel内部包裹菜单Table的格局
+        self.console.print(Panel(
+            table,
+            title=f"[bold]{menu_node.name}[/bold]",
+            title_align= "left",
+            subtitle=f"> {menu_node.description}",
+            subtitle_align="center",
+            box=box.DOUBLE,
+            style="cyan",
+            width=120
+        ))
