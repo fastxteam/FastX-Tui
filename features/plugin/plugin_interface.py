@@ -63,8 +63,7 @@ class PluginInterface:
             
             for i, plugin_info in enumerate(plugins, 1):
                 status_icon = "✅" if plugin_info["enabled"] and plugin_info["loaded"] else "🔄" if plugin_info["enabled"] else "❌"
-                status_text = "已加载" if plugin_info["loaded"] else "未加载"
-                status = f"{status_icon}\n{status_text}"
+                status = status_icon
                 table.add_row(
                     f"{i}",
                     status,
@@ -262,7 +261,7 @@ class PluginInterface:
         
         self.console.print("已安装的插件:")
         for i, plugin_info in enumerate(installed_plugins, 1):
-            self.console.print(f"{i}. {plugin_info.name} v{plugin_info.version}")
+            self.console.print(f"{i}. {plugin_info['name']} v{plugin_info['version']}")
         
         self.console.print("0. 返回")
         self.console.print("a. 更新所有插件")
@@ -278,9 +277,9 @@ class PluginInterface:
             updated_count = 0
             for plugin_info in installed_plugins:
                 # 这里可以根据插件的repository信息来更新
-                self.console.print(f"\n更新 {plugin_info.name}...")
+                self.console.print(f"\n更新 {plugin_info['name']}...")
                 # 实际更新逻辑需要根据插件的具体情况实现
-                self.console.print(f"✅ {plugin_info.name} 已是最新版本")
+                self.console.print(f"✅ {plugin_info['name']} 已是最新版本")
                 updated_count += 1
             self.console.print(f"\n[green]更新完成! 共更新了 {updated_count} 个插件[/green]")
         else:
@@ -289,9 +288,9 @@ class PluginInterface:
                 idx = int(choice) - 1
                 if 0 <= idx < len(installed_plugins):
                     plugin_info = installed_plugins[idx]
-                    self.console.print(f"\n正在更新 {plugin_info.name}...")
+                    self.console.print(f"\n正在更新 {plugin_info['name']}...")
                     # 实际更新逻辑
-                    self.console.print(f"✅ {plugin_info.name} 已是最新版本")
+                    self.console.print(f"✅ {plugin_info['name']} 已是最新版本")
                 else:
                     self.console.print("[red]无效的插件编号[/red]")
             except ValueError:
@@ -496,7 +495,7 @@ class PluginInterface:
         # 显示插件列表供选择
         for i, plugin_info in enumerate(plugins, 1):
             status = "✅ 已启用" if plugin_info["enabled"] else "❌ 已禁用"
-            self.console.print(f"{i}. {plugin_info['display_name']} - {status}")
+            self.console.print(f"{i}. {plugin_info['name']} - {status}")
         
         self.console.print("0. 返回")
         self.console.print()

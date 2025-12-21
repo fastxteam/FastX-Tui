@@ -364,6 +364,14 @@ class PluginManager:
             if plugin_name in self.all_plugins:
                 self.all_plugins.remove(plugin_name)
             
+            # 从已加载插件中移除
+            if plugin_name in self.plugins:
+                del self.plugins[plugin_name]
+            
+            # 从已加载插件名称列表中移除
+            if plugin_name in self.loaded_plugins:
+                self.loaded_plugins.remove(plugin_name)
+            
             # 移除插件配置
             if plugin_name in self.plugin_configs:
                 del self.plugin_configs[plugin_name]
