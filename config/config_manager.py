@@ -94,13 +94,18 @@ class ConfigManager:
     def _load_config(self):
         """加载配置"""
         try:
-            # 加载主配置
+            # 加载主配置和额外配置
             if self.config_file.exists():
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+                    self._extra_configs = {}
+                    
                     for key, value in data.items():
                         if hasattr(self.config, key):
                             setattr(self.config, key, value)
+                        else:
+                            # 保存为额外配置项
+                            self._extra_configs[key] = value
             
             # 加载用户偏好
             if self.prefs_file.exists():
@@ -125,8 +130,13 @@ class ConfigManager:
     def save_config(self):
         """保存配置"""
         try:
+            # 合并AppConfig和_extra_configs
+            config_data = asdict(self.config)
+            if hasattr(self, '_extra_configs'):
+                config_data.update(self._extra_configs)
+            
             with open(self.config_file, 'w', encoding='utf-8') as f:
-                json.dump(asdict(self.config), f, indent=2, ensure_ascii=False)
+                json.dump(config_data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"[错误] 保存配置失败: {str(e)}")
     
@@ -140,12 +150,22 @@ class ConfigManager:
     
     def get_config(self, key: str, default: Any = None) -> Any:
         """获取配置值"""
+        # 先检查是否是额外配置项
+        if hasattr(self, '_extra_configs') and key in self._extra_configs:
+            return self._extra_configs[key]
+        # 再检查是否是AppConfig中的配置项
         return getattr(self.config, key, default)
     
     def set_config(self, key: str, value: Any):
         """设置配置值"""
         if hasattr(self.config, key):
             setattr(self.config, key, value)
+            self.save_config()
+        else:
+            # 处理额外配置项，如plugin_configs
+            if not hasattr(self, '_extra_configs'):
+                self._extra_configs = {}
+            self._extra_configs[key] = value
             self.save_config()
     
     def get_preference(self, key: str, default: Any = None) -> Any:

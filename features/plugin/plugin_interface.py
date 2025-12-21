@@ -50,7 +50,7 @@ class PluginInterface:
         plugins = self.plugin_manager.list_plugins()
         
         if plugins:
-            self.console.print(f"📦 已加载插件 ({len(plugins)}):")
+            self.console.print(f"📦 已发现插件 ({len(plugins)}):")
             
             # 创建表格显示插件信息
             table = Table(show_header=True, header_style="bold magenta", box=box.SIMPLE)
@@ -59,27 +59,25 @@ class PluginInterface:
             table.add_column("名称", style="white")
             table.add_column("版本", style="green")
             table.add_column("作者", style="yellow")
+            table.add_column("描述", style="dim")
             
             for i, plugin_info in enumerate(plugins, 1):
-                status = "✅" if plugin_info.enabled else "❌"
+                status_icon = "✅" if plugin_info["enabled"] and plugin_info["loaded"] else "🔄" if plugin_info["enabled"] else "❌"
+                status_text = "已加载" if plugin_info["loaded"] else "未加载"
+                status = f"{status_icon}\n{status_text}"
                 table.add_row(
                     f"{i}",
                     status,
-                    plugin_info.name,
-                    f"v{plugin_info.version}",
-                    plugin_info.author
+                    plugin_info["display_name"],
+                    f"v{plugin_info['version']}",
+                    plugin_info["author"],
+                    plugin_info["description"]
                 )
             
             self.console.print(table)
             self.console.print()
-            
-            # 显示插件详细信息
-            for i, plugin_info in enumerate(plugins, 1):
-                self.console.print(f"{i}. {plugin_info.name} 描述:")
-                self.console.print(f"   {plugin_info.description}")
-                self.console.print()
         else:
-            self.console.print(f"[yellow]暂无已加载的插件[/yellow]")
+            self.console.print(f"[yellow]暂无插件[/yellow]")
             self.console.print()
         
         # 显示插件操作选项
@@ -91,6 +89,7 @@ class PluginInterface:
             "5. 浏览在线插件",
             "6. 安装在线插件",
             "7. 更新插件",
+            "8. 卸载插件",
             "0. 返回主菜单",
             "q. 退出"
         ]
@@ -105,7 +104,7 @@ class PluginInterface:
     
     def _get_user_choice(self) -> str:
         """获取用户选择"""
-        self.console.print("请输入您的选择 (1-4, 0, q): ", style="bold green", end="")
+        self.console.print("请输入您的选择 (1-8, 0, q): ", style="bold green", end="")
         
         # 使用无缓冲输入
         if sys.platform == "win32":
@@ -142,6 +141,8 @@ class PluginInterface:
             self._install_online_plugin()
         elif choice == '7':
             self._update_plugins()
+        elif choice == '8':
+            self._uninstall_plugin()
         
         if choice != '0' and choice != 'q':
             self.console.print("\n按任意键继续...", style="dim")
@@ -307,7 +308,43 @@ class PluginInterface:
         # 清理现有插件
         self.plugin_manager.cleanup_all()
         
-        # 重新加载
+        # 清空所有插件相关的菜单和命令
+        from core.menu_system import MenuNode
+        
+        # 先记录要删除的插件菜单项
+        plugin_items_to_remove = []
+        
+        # 获取主菜单
+        main_menu = self.menu_system.get_item_by_id("main_menu")
+        if isinstance(main_menu, MenuNode):
+            # 遍历主菜单中的所有菜单项
+            for item_id in main_menu.items[:]:
+                # 跳过系统内置菜单
+                if item_id not in ["platform_tools_menu", "settings_menu"]:
+                    # 检查是否是插件添加的菜单项
+                    menu_item = self.menu_system.get_item_by_id(item_id)
+                    if menu_item and isinstance(menu_item, MenuNode):
+                        # 检查菜单是否是插件创建的
+                        if "plugin" in item_id.lower() or "example" in item_id.lower():
+                            plugin_items_to_remove.append(item_id)
+        
+        # 从主菜单中移除插件菜单项
+        if isinstance(main_menu, MenuNode):
+            for item_id in plugin_items_to_remove:
+                main_menu.remove_item(item_id)
+        
+        # 清空插件相关的菜单项
+        plugin_items_to_clean = []
+        for item_id, item in self.menu_system.items.items():
+            # 移除插件相关的菜单和命令
+            if "plugin" in item_id.lower() or "example" in item_id.lower():
+                plugin_items_to_clean.append(item_id)
+        
+        # 从菜单系统中移除插件菜单项
+        for item_id in plugin_items_to_clean:
+            self.menu_system.remove_item(item_id)
+        
+        # 重新加载插件
         self.plugin_manager.load_all_plugins()
         self.plugin_manager.register_all_plugins(self.menu_system)
         
@@ -356,17 +393,26 @@ class PluginInterface:
             if item_id not in ["main_menu", "platform_tools_menu", "system_tools_menu", "file_tools_menu", 
                               "python_tools_menu", "settings_menu", "show_config", "plugin_manager", 
                               "clear_screen", "show_help", "exit_app", "update_app", "plugins_menu"]:
-                # 检查是否是插件生成的命令
-                if isinstance(item, (MenuItem, ActionItem)) and not isinstance(item, MenuNode):
-                    # 是插件命令，检查是否直接注册到了主菜单
-                    is_in_main_menu = item_id in main_menu.items
-                    
-                    # 如果是直接注册到主菜单的命令，添加到插件菜单
-                    if is_in_main_menu:
-                        plugins_menu.add_item(item_id)
-                        plugin_items_added = True
-                        # 收集要从主菜单移除的命令
-                        commands_to_remove.append(item_id)
+                # 检查是否是插件生成的命令或菜单
+                if isinstance(item, (MenuItem, ActionItem, MenuNode)):
+                    if isinstance(item, MenuNode):
+                        # 是插件生成的菜单，检查是否直接注册到了主菜单
+                        is_in_main_menu = item_id in main_menu.items
+                        
+                        if is_in_main_menu:
+                            # 保留在主菜单中，因为有些插件可能需要直接添加菜单到主菜单
+                            # 但我们可以在禁用插件时清理这些菜单
+                            plugin_items_added = True
+                    else:
+                        # 是插件命令，检查是否直接注册到了主菜单
+                        is_in_main_menu = item_id in main_menu.items
+                        
+                        # 如果是直接注册到主菜单的命令，添加到插件菜单
+                        if is_in_main_menu:
+                            plugins_menu.add_item(item_id)
+                            plugin_items_added = True
+                            # 收集要从主菜单移除的命令
+                            commands_to_remove.append(item_id)
         
         # 从主菜单中移除插件命令
         for item_id in commands_to_remove:
@@ -440,7 +486,7 @@ class PluginInterface:
         plugins = self.plugin_manager.list_plugins()
         
         if not plugins:
-            self.console.print(f"\n[yellow]暂无已加载的插件[/yellow]")
+            self.console.print(f"\n[yellow]暂无插件[/yellow]")
             return
         
         self.console.print("\n" + "-" * 80)
@@ -449,8 +495,8 @@ class PluginInterface:
         
         # 显示插件列表供选择
         for i, plugin_info in enumerate(plugins, 1):
-            status = "✅ 已启用" if plugin_info.enabled else "❌ 已禁用"
-            self.console.print(f"{i}. {plugin_info.name} - {status}")
+            status = "✅ 已启用" if plugin_info["enabled"] else "❌ 已禁用"
+            self.console.print(f"{i}. {plugin_info['display_name']} - {status}")
         
         self.console.print("0. 返回")
         self.console.print()
@@ -465,9 +511,76 @@ class PluginInterface:
             idx = int(choice) - 1
             if 0 <= idx < len(plugins):
                 plugin_info = plugins[idx]
-                self.console.print(f"\n暂不支持动态启用/禁用插件", style="yellow")
-                self.console.print(f"插件 {plugin_info.name} 当前状态: {'启用' if plugin_info.enabled else '禁用'}")
+                plugin_name = plugin_info["name"]
+                
+                if plugin_info["enabled"]:
+                    # 禁用插件
+                    success = self.plugin_manager.disable_plugin(plugin_name)
+                    if success:
+                        self.console.print(f"\n[green]✅ 插件 {plugin_info['display_name']} 已成功禁用[/green]")
+                        # 重新加载插件并重建菜单
+                        self._reload_plugins()
+                    else:
+                        self.console.print(f"\n[red]❌ 禁用插件 {plugin_info['display_name']} 失败[/red]")
+                else:
+                    # 启用插件
+                    success = self.plugin_manager.enable_plugin(plugin_name)
+                    if success:
+                        self.console.print(f"\n[green]✅ 插件 {plugin_info['display_name']} 已成功启用[/green]")
+                        # 重新加载插件并重建菜单
+                        self._reload_plugins()
+                    else:
+                        self.console.print(f"\n[red]❌ 启用插件 {plugin_info['display_name']} 失败[/red]")
             else:
-                self.console.print(f"\n[red]无效的插件编号[/red]")
+                self.console.print(f"\n[red]❌ 无效的插件编号[/red]")
         except ValueError:
-            self.console.print(f"\n[red]无效的输入[/red]")
+            self.console.print(f"\n[red]❌ 无效的输入[/red]")
+    
+    def _uninstall_plugin(self):
+        """卸载插件"""
+        plugins = self.plugin_manager.list_plugins()
+        
+        if not plugins:
+            self.console.print(f"\n[yellow]暂无插件[/yellow]")
+            return
+        
+        self.console.print("\n" + "-" * 80)
+        self.console.print("🗑️  卸载插件".center(80), style="bold green")
+        self.console.print("-" * 80)
+        
+        # 显示插件列表供选择
+        for i, plugin_info in enumerate(plugins, 1):
+            self.console.print(f"{i}. {plugin_info['display_name']} v{plugin_info['version']}")
+        
+        self.console.print("0. 返回")
+        self.console.print()
+        
+        self.console.print("请输入插件编号: ", style="bold green", end="")
+        choice = input().strip()
+        
+        if choice == '0':
+            return
+        
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(plugins):
+                plugin_info = plugins[idx]
+                plugin_name = plugin_info["name"]
+                
+                # 确认卸载
+                from rich.prompt import Confirm
+                confirm = Confirm.ask(f"\n是否确定要卸载插件 {plugin_info['display_name']}?")
+                if confirm:
+                    success = self.plugin_manager.uninstall_plugin(plugin_name)
+                    if success:
+                        self.console.print(f"\n[green]✅ 插件 {plugin_info['display_name']} 已成功卸载[/green]")
+                        # 重新加载插件并重建菜单
+                        self._reload_plugins()
+                    else:
+                        self.console.print(f"\n[red]❌ 卸载插件 {plugin_info['display_name']} 失败[/red]")
+                else:
+                    self.console.print(f"\n[yellow]已取消卸载插件 {plugin_info['display_name']}[/yellow]")
+            else:
+                self.console.print(f"\n[red]❌ 无效的插件编号[/red]")
+        except ValueError:
+            self.console.print(f"\n[red]❌ 无效的输入[/red]")

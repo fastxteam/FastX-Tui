@@ -45,7 +45,8 @@ class AppManager:
         
         # 初始化插件管理器
         self.plugin_manager = PluginManager(
-            self.config_manager.get_config("plugin_directory", "plugins")
+            self.config_manager.get_config("plugin_directory", "plugins"),
+            self.config_manager
         )
         
         # 初始化搜索功能

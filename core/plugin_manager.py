@@ -93,16 +93,47 @@ class Plugin(ABC):
 class PluginManager:
     """插件管理器"""
     
-    def __init__(self, plugin_dir: str = "plugins"):
+    def __init__(self, plugin_dir: str = "plugins", config_manager=None):
         self.plugin_dir = plugin_dir
-        self.plugins: Dict[str, Plugin] = {}
-        self.loaded_plugins: List[str] = []
+        self.plugins: Dict[str, Plugin] = {}  # 已加载的插件
+        self.loaded_plugins: List[str] = []   # 已加载插件名称列表
+        self.all_plugins: List[str] = []      # 所有发现的插件，包括未加载的
+        self.plugin_configs: Dict[str, Dict] = {}  # 插件配置，包括启用状态等
         
         # 初始化日志器
         self.logger = get_logger("PluginManager")
         
         # 创建插件目录
         os.makedirs(plugin_dir, exist_ok=True)
+        
+        # 配置管理器，用于持久化插件配置
+        self.config_manager = config_manager
+        
+        # 加载插件配置
+        self._load_plugin_configs()
+        
+    def _load_plugin_configs(self):
+        """加载插件配置"""
+        if self.config_manager:
+            plugin_configs = self.config_manager.get_config("plugin_configs", {})
+            self.plugin_configs = plugin_configs
+        else:
+            # 没有配置管理器时使用默认配置
+            self.plugin_configs = {}
+    
+    def _save_plugin_configs(self):
+        """保存插件配置"""
+        if self.config_manager:
+            self.config_manager.set_config("plugin_configs", self.plugin_configs)
+    
+    def get_plugin_config(self, plugin_name: str) -> Dict:
+        """获取插件配置"""
+        return self.plugin_configs.get(plugin_name, {})
+    
+    def set_plugin_config(self, plugin_name: str, config: Dict):
+        """设置插件配置"""
+        self.plugin_configs[plugin_name] = config
+        self._save_plugin_configs()
     
     def discover_plugins(self) -> List[str]:
         """发现插件文件和GitHub仓库插件"""
@@ -111,9 +142,11 @@ class PluginManager:
         for item in os.listdir(self.plugin_dir):
             item_path = os.path.join(self.plugin_dir, item)
             
-            # 处理单个.py文件插件（兼容旧版本）
+            # 处理单个.py文件插件（兼容旧版本） - 只允许FastX-Tui-Plugin-开头的命名
             if os.path.isfile(item_path) and item.endswith('.py') and item != '__init__.py':
-                plugin_files.append(item[:-3])  # 移除.py扩展名
+                # 单个.py文件插件也必须以FastX-Tui-Plugin-开头
+                if item.startswith('FastX-Tui-Plugin-'):
+                    plugin_files.append(item[:-3])  # 移除.py扩展名
             
             # 处理GitHub仓库插件
             elif os.path.isdir(item_path):
@@ -205,8 +238,18 @@ class PluginManager:
     def load_all_plugins(self) -> Dict[str, Plugin]:
         """加载所有插件"""
         plugin_names = self.discover_plugins()
+        self.all_plugins = plugin_names
+        
         for plugin_name in plugin_names:
-            self.load_plugin(plugin_name)
+            # 检查插件是否被启用
+            plugin_config = self.get_plugin_config(plugin_name)
+            enabled = plugin_config.get("enabled", True)
+            
+            if enabled:
+                self.load_plugin(plugin_name)
+            else:
+                self.logger.info(f"插件 {plugin_name} 已被禁用，跳过加载")
+        
         return self.plugins
     
     def register_all_plugins(self, menu_system: MenuSystem):
@@ -221,19 +264,160 @@ class PluginManager:
         """获取插件实例"""
         return self.plugins.get(plugin_name)
     
-    def list_plugins(self) -> List[PluginInfo]:
-        """列出所有插件信息"""
-        return [plugin.get_info() for plugin in self.plugins.values()]
+    def list_plugins(self) -> List[Dict[str, Any]]:
+        """列出所有插件信息，包括已加载和未加载的"""
+        plugin_list = []
+        
+        for plugin_name in self.all_plugins:
+            plugin_info = {
+                "name": plugin_name,
+                "loaded": plugin_name in self.plugins,
+                "enabled": self.get_plugin_config(plugin_name).get("enabled", True)
+            }
+            
+            # 如果插件已加载，获取详细信息
+            if plugin_name in self.plugins:
+                try:
+                    plugin = self.plugins[plugin_name]
+                    detailed_info = plugin.get_info()
+                    plugin_info.update({
+                        "display_name": detailed_info.name,
+                        "version": detailed_info.version,
+                        "author": detailed_info.author,
+                        "description": detailed_info.description,
+                        "category": detailed_info.category,
+                        "tags": detailed_info.tags,
+                        "compatibility": detailed_info.compatibility
+                    })
+                except Exception as e:
+                    self.logger.warning(f"获取插件 {plugin_name} 详细信息失败: {str(e)}")
+            else:
+                # 未加载的插件，只显示基本信息
+                plugin_info.update({
+                    "display_name": plugin_name,
+                    "version": "未知",
+                    "author": "未知",
+                    "description": "插件未加载"
+                })
+            
+            plugin_list.append(plugin_info)
+        
+        return plugin_list
     
-    def enable_plugin(self, plugin_name: str) -> bool:
+    def uninstall_plugin(self, plugin_name: str) -> bool:
+        """卸载插件"""
+        try:
+            # 先禁用插件
+            self.disable_plugin(plugin_name)
+            
+            # 删除插件目录或文件
+            plugin_path = os.path.join(self.plugin_dir, plugin_name)
+            if os.path.isdir(plugin_path):
+                import shutil
+                import stat
+                
+                def remove_readonly(func, path, excinfo):
+                    """处理只读文件的删除回调"""
+                    # 将文件设置为可写
+                    os.chmod(path, stat.S_IWRITE)
+                    # 重新尝试删除
+                    func(path)
+                
+                try:
+                    # 尝试删除目录，处理只读文件
+                    shutil.rmtree(plugin_path, onerror=remove_readonly)
+                    self.logger.info(f"已删除插件目录: {plugin_path}")
+                except Exception as e:
+                    # 如果删除失败，尝试手动删除目录内容
+                    self.logger.warning(f"使用shutil.rmtree删除目录失败，尝试手动删除: {str(e)}")
+                    
+                    # 手动删除文件，跳过可能锁定的文件
+                    for root, dirs, files in os.walk(plugin_path, topdown=False):
+                        for name in files:
+                            try:
+                                file_path = os.path.join(root, name)
+                                os.chmod(file_path, stat.S_IWRITE)
+                                os.remove(file_path)
+                            except Exception as file_e:
+                                self.logger.warning(f"无法删除文件 {file_path}: {str(file_e)}")
+                        for name in dirs:
+                            try:
+                                dir_path = os.path.join(root, name)
+                                os.rmdir(dir_path)
+                            except Exception as dir_e:
+                                self.logger.warning(f"无法删除目录 {dir_path}: {str(dir_e)}")
+                    
+                    # 最后尝试删除根目录
+                    try:
+                        os.rmdir(plugin_path)
+                        self.logger.info(f"已删除插件目录: {plugin_path}")
+                    except Exception as root_e:
+                        self.logger.error(f"无法删除插件根目录 {plugin_path}: {str(root_e)}")
+            elif os.path.isfile(plugin_path + ".py"):
+                os.remove(plugin_path + ".py")
+                self.logger.info(f"已删除插件文件: {plugin_path}.py")
+            else:
+                self.logger.warning(f"插件 {plugin_name} 不存在")
+                return False
+            
+            # 从插件列表中移除
+            if plugin_name in self.all_plugins:
+                self.all_plugins.remove(plugin_name)
+            
+            # 移除插件配置
+            if plugin_name in self.plugin_configs:
+                del self.plugin_configs[plugin_name]
+                self._save_plugin_configs()
+            
+            return True
+        except Exception as e:
+            self.logger.error(f"卸载插件 {plugin_name} 失败: {str(e)}")
+            return False
+    
+    def enable_plugin(self, plugin_name: str, menu_system=None) -> bool:
         """启用插件"""
-        # 这里可以实现动态启用/禁用逻辑
-        return False
+        try:
+            # 更新插件配置
+            plugin_config = self.get_plugin_config(plugin_name)
+            plugin_config["enabled"] = True
+            self.set_plugin_config(plugin_name, plugin_config)
+            
+            # 加载插件
+            plugin = self.load_plugin(plugin_name)
+            
+            # 如果提供了menu_system，重新注册所有插件
+            if menu_system and plugin:
+                plugin.register(menu_system)
+            
+            return plugin is not None
+        except Exception as e:
+            self.logger.error(f"启用插件 {plugin_name} 失败: {str(e)}")
+            return False
     
-    def disable_plugin(self, plugin_name: str) -> bool:
+    def disable_plugin(self, plugin_name: str, menu_system=None) -> bool:
         """禁用插件"""
-        # 这里可以实现动态启用/禁用逻辑
-        return False
+        try:
+            # 更新插件配置
+            plugin_config = self.get_plugin_config(plugin_name)
+            plugin_config["enabled"] = False
+            self.set_plugin_config(plugin_name, plugin_config)
+            
+            # 如果插件已加载，清理插件
+            if plugin_name in self.plugins:
+                plugin = self.plugins[plugin_name]
+                try:
+                    plugin.cleanup()
+                except Exception as e:
+                    self.logger.warning(f"清理插件 {plugin_name} 失败: {str(e)}")
+                
+                del self.plugins[plugin_name]
+                if plugin_name in self.loaded_plugins:
+                    self.loaded_plugins.remove(plugin_name)
+            
+            return True
+        except Exception as e:
+            self.logger.error(f"禁用插件 {plugin_name} 失败: {str(e)}")
+            return False
     
     def cleanup_all(self):
         """清理所有插件"""

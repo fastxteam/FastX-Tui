@@ -103,6 +103,25 @@ class MenuNode(MenuItem):
                         return
             # 如果不存在，添加
             self.items.append(item)
+    
+    def remove_item(self, item: Union[str, MenuItem, 'MenuNode']):
+        """移除菜单项"""
+        if isinstance(item, str):
+            # 字符串ID
+            if item in self.items:
+                self.items.remove(item)
+        else:
+            # 菜单项对象，检查ID
+            item_id = item.id
+            for i, existing in enumerate(self.items):
+                if isinstance(existing, str):
+                    if existing == item_id:
+                        self.items.pop(i)
+                        return
+                else:
+                    if existing.id == item_id:
+                        self.items.pop(i)
+                        return
 
     def get_display_items(self, menu_system: Optional['MenuSystem'] = None) -> List[MenuItem]:
         """获取显示的项目列表，确保菜单在前，命令在后"""
@@ -260,5 +279,28 @@ class MenuSystem:
         main_menu = self.get_item_by_id("main_menu")
         if isinstance(main_menu, MenuNode):
             main_menu.add_item(item)
+            return True
+        return False
+    
+    def remove_item_from_main_menu(self, item: Union[str, MenuItem, MenuNode]) -> bool:
+        """从主菜单移除菜单项"""
+        main_menu = self.get_item_by_id("main_menu")
+        if isinstance(main_menu, MenuNode):
+            main_menu.remove_item(item)
+            return True
+        return False
+    
+    def remove_item(self, item_id: str) -> bool:
+        """从菜单系统中移除菜单项"""
+        if item_id in self.items:
+            del self.items[item_id]
+            return True
+        return False
+    
+    def remove_item_from_menu(self, menu_id: str, item: Union[str, MenuItem, MenuNode]) -> bool:
+        """从指定菜单移除菜单项"""
+        menu = self.get_item_by_id(menu_id)
+        if isinstance(menu, MenuNode):
+            menu.remove_item(item)
             return True
         return False
