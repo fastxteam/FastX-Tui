@@ -105,18 +105,28 @@ class MenuNode(MenuItem):
             self.items.append(item)
 
     def get_display_items(self, menu_system: Optional['MenuSystem'] = None) -> List[MenuItem]:
-        """获取显示的项目列表"""
-        display_items = []
+        """获取显示的项目列表，确保菜单在前，命令在后"""
+        menus = []
+        commands = []
+        
         for item in self.items:
             if isinstance(item, str):
                 # 如果是字符串ID，需要从menu_system中获取实际项目
                 if menu_system:
                     menu_item = menu_system.get_item_by_id(item)
                     if menu_item and menu_item.enabled:
-                        display_items.append(menu_item)
+                        if isinstance(menu_item, MenuNode):
+                            menus.append(menu_item)
+                        else:
+                            commands.append(menu_item)
             elif isinstance(item, (MenuItem, MenuNode)) and item.enabled:
-                display_items.append(item)
-        return display_items
+                if isinstance(item, MenuNode):
+                    menus.append(item)
+                else:
+                    commands.append(item)
+        
+        # 菜单在前，命令在后
+        return menus + commands
 
 
 class MenuSystem:

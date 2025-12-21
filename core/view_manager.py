@@ -452,6 +452,17 @@ class ViewManager:
         
         # 创建表格显示菜单项
         from rich.table import Table
+        from rich.panel import Panel
+        
+        
+        # 显示菜单标题、描述和面包屑
+        self.console.print(Panel(
+            f"[bold]{menu_node.name}[/bold]\n{menu_node.description}",
+            box=box.ROUNDED,
+            style="cyan",
+            width=120
+        ))
+        self.console.print()
         
         table = Table(
             box=box.SIMPLE,

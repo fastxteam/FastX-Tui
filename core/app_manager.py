@@ -144,6 +144,15 @@ class AppManager:
             icon="🏠"
         )
         
+        # 创建平台工具主菜单（整合系统工具、文件工具、Python工具）
+        platform_tools_menu = MenuNode(
+            id="platform_tools_menu",
+            name="平台工具",
+            description="平台提供的通用工具集",
+            menu_type=MenuType.SUB,
+            icon="🛠️"
+        )
+        
         # 系统工具菜单
         system_menu = MenuNode(
             id="system_tools_menu",
@@ -173,6 +182,7 @@ class AppManager:
         
         # 注册菜单
         self.menu_system.register_item(main_menu)
+        self.menu_system.register_item(platform_tools_menu)
         self.menu_system.register_item(system_menu)
         self.menu_system.register_item(file_menu)
         self.menu_system.register_item(python_menu)
@@ -279,10 +289,10 @@ class AppManager:
             python_func=self.operations['python'].check_imports
         ))
         
-        # 将子菜单添加到主菜单
-        main_menu.add_item("system_tools_menu")
-        main_menu.add_item("file_tools_menu")
-        main_menu.add_item("python_tools_menu")
+        # 将系统工具、文件工具、Python工具添加到平台工具菜单
+        platform_tools_menu.add_item("system_tools_menu")
+        platform_tools_menu.add_item("file_tools_menu")
+        platform_tools_menu.add_item("python_tools_menu")
         
         # 创建插件主菜单
         plugins_menu = MenuNode(
@@ -293,6 +303,15 @@ class AppManager:
             icon="🔌"
         )
         self.menu_system.register_item(plugins_menu)
+        
+        # 将平台工具添加到主菜单
+        main_menu.add_item("platform_tools_menu")  # 平台工具菜单排在第一位
+        
+        # 插件菜单将在_rebuild_plugin_menu中根据实际插件命令情况添加
+        # 插件可以直接注册菜单到主菜单
+        
+        # 添加设置菜单到主菜单
+        main_menu.add_item("settings_menu")
         
         # 设置当前菜单
         self.menu_system.current_menu = main_menu
@@ -330,7 +349,7 @@ class AppManager:
                 ))
     
     def _rebuild_plugin_menu(self):
-        """重建插件菜单"""
+        """重建插件菜单 - 自动统计所有插件的命令"""
         from core.menu_system import MenuNode
         
         # 获取插件菜单
@@ -358,24 +377,52 @@ class AppManager:
         if "plugins_menu" in main_menu.items:
             main_menu.items.remove("plugins_menu")
         
-        # 添加所有已注册的插件命令和子菜单到插件主菜单
+        # 自动统计所有插件命令
         plugin_items_added = False
-        for item_id, item in self.menu_system.items.items():
-            # 跳过已经添加过的项目和固定项
-            if item_id not in ["main_menu", "system_tools_menu", "file_tools_menu", "python_tools_menu", "show_config", "plugin_manager", "clear_screen", "show_help", "exit_app", "plugins_menu"]:
-                # 添加所有插件创建的项目，包括MenuNode类型的子菜单
-                if isinstance(item, MenuNode):
-                    # 插件创建的子菜单，直接添加到插件主菜单
-                    plugins_menu.add_item(item_id)
-                    plugin_items_added = True
-                else:
-                    # 插件命令，直接添加到插件主菜单
-                    plugins_menu.add_item(item_id)
-                    plugin_items_added = True
         
-        # 如果有插件命令，将插件菜单重新添加到主菜单
+        # 遍历所有已注册的插件命令
+        from core.menu_system import MenuItem, ActionItem
+        
+        # 收集要从主菜单移除的插件命令
+        commands_to_remove = []
+        
+        for item_id, item in self.menu_system.items.items():
+            # 跳过系统内置项目和菜单
+            if item_id not in ["main_menu", "platform_tools_menu", "system_tools_menu", "file_tools_menu", 
+                              "python_tools_menu", "settings_menu", "show_config", "plugin_manager", 
+                              "clear_screen", "show_help", "exit_app", "update_app", "plugins_menu"]:
+                # 检查是否是插件生成的命令
+                if isinstance(item, (MenuItem, ActionItem)) and not isinstance(item, MenuNode):
+                    # 是插件命令，检查是否直接注册到了主菜单
+                    is_in_main_menu = item_id in main_menu.items
+                    
+                    # 如果是直接注册到主菜单的命令，添加到插件菜单
+                    if is_in_main_menu:
+                        plugins_menu.add_item(item_id)
+                        plugin_items_added = True
+                        # 收集要从主菜单移除的命令
+                        commands_to_remove.append(item_id)
+        
+        # 从主菜单中移除插件命令
+        for item_id in commands_to_remove:
+            if item_id in main_menu.items:
+                main_menu.items.remove(item_id)
+        
+        # 如果有插件命令，确保插件菜单始终位于主菜单的第二位
         if plugin_items_added:
-            main_menu.add_item("plugins_menu")
+            # 确保主菜单至少有平台工具菜单
+            if "platform_tools_menu" not in main_menu.items:
+                main_menu.add_item("platform_tools_menu")
+            
+            # 移除插件菜单（如果已存在）
+            if "plugins_menu" in main_menu.items:
+                main_menu.items.remove("plugins_menu")
+            
+            # 插入插件菜单到第二位
+            if len(main_menu.items) >= 2:
+                main_menu.items.insert(1, "plugins_menu")
+            else:
+                main_menu.items.append("plugins_menu")
         
         # 动态注册所有菜单和命令路由，包括插件生成的
         self._register_dynamic_routes()
@@ -435,13 +482,24 @@ class AppManager:
             type="menu"
         ))
         
+        # 注册平台工具菜单路由（整合系统工具、文件工具、Python工具）
+        self.view_manager.register_route(ViewRoute(
+            id="platform_tools_menu",
+            name="平台工具",
+            description="平台提供的通用工具集",
+            handler=self._render_menu,
+            parent_id="main_menu",
+            icon="🛠️",
+            type="menu"
+        ))
+        
         # 注册系统工具菜单路由
         self.view_manager.register_route(ViewRoute(
             id="system_tools_menu",
             name="系统工具",
             description="系统信息和管理工具",
             handler=self._render_menu,
-            parent_id="main_menu",
+            parent_id="platform_tools_menu",
             icon="🖥️",
             type="menu"
         ))
@@ -452,7 +510,7 @@ class AppManager:
             name="文件工具",
             description="文件管理和操作工具",
             handler=self._render_menu,
-            parent_id="main_menu",
+            parent_id="platform_tools_menu",
             icon="📁",
             type="menu"
         ))
@@ -463,7 +521,7 @@ class AppManager:
             name="Python工具",
             description="Python开发和运行时工具",
             handler=self._render_menu,
-            parent_id="main_menu",
+            parent_id="platform_tools_menu",
             icon="🐍",
             type="menu"
         ))
