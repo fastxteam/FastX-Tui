@@ -42,6 +42,9 @@ class UpdateManager:
         self.last_check_time = 0
         self.check_interval = 86400  # 24小时
         
+        # GitHub发布的assets列表
+        self.assets = []
+        
         # 网络工具将在需要时通过依赖注入获取
         self.network_tools = None
         
@@ -108,6 +111,8 @@ class UpdateManager:
             if result['success']:
                 self.latest_version = result['latest_version']
                 self.update_available = result['update_available']
+                # 保存assets信息，用于后续下载
+                self.assets = result.get('assets', [])
                 logger.info(f"版本检查成功，最新版本: {self.latest_version}, 是否有更新: {self.update_available}")
             else:
                 self.version_check_failed = True
@@ -336,24 +341,57 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
         Returns:
             Optional[str]: 下载URL
         """
-        # 根据平台选择下载URL
+        # 获取当前平台
         current_platform = platform.system()
         
-        if current_platform == "Windows":
-            asset_name = "fastx-tui.exe"
-        elif current_platform == "Linux":
-            asset_name = "fastx-tui-linux"
-        else:
+        # 定义平台标识
+        platform_identifier = "win" if current_platform == "Windows" else "linux" if current_platform == "Linux" else None
+        
+        if not platform_identifier:
             logger.error(f"不支持的平台: {current_platform}")
             if self.console:
                 self.console.print(f"[red]不支持的平台: {current_platform}[/red]")
             return None
         
-        # 构建下载URL
-        download_url = f"https://github.com/fastxteam/FastX-Tui/releases/download/v{self.latest_version}/{asset_name}"
+        # 如果没有assets信息，尝试直接构建URL作为备选方案
+        if not self.assets:
+            logger.warning("没有获取到assets信息，使用备选URL构建方案")
+            # 构建备选URL
+            base_name = f"fastx-tui-{platform_identifier}"
+            if platform_identifier == "win":
+                base_name += ".exe"
+            download_url = f"https://github.com/fastxteam/FastX-Tui/releases/download/v{self.latest_version}/{base_name}"
+            logger.info(f"使用备选方案构建下载URL: {download_url}")
+            return download_url
         
-        logger.info(f"构建下载URL: {download_url}")
-        return download_url
+        # 根据平台动态查找合适的asset
+        import re
+        
+        # 查找匹配的asset
+        matched_asset = None
+        for asset in self.assets:
+            asset_name = asset['name'].lower()
+            
+            # 匹配规则：
+            # 1. 对于Windows平台，匹配以.exe结尾的文件
+            # 2. 对于Linux平台，匹配没有扩展名且包含linux或fastx的可执行文件
+            # 3. 排除source code和其他非可执行文件
+            is_windows_match = current_platform == "Windows" and asset_name.endswith(".exe")
+            is_linux_match = current_platform == "Linux" and (not asset_name.endswith(".") and not "." in asset_name.split(".")[-1] or asset_name.endswith("-linux"))
+            
+            if ((is_windows_match or is_linux_match) and 
+                not any(keyword in asset_name for keyword in ['source', 'src', '.zip', '.tar', '.gz', '.7z', '.whl'])):
+                matched_asset = asset
+                break
+        
+        if matched_asset:
+            logger.info(f"找到匹配的asset: {matched_asset['name']}")
+            return matched_asset['browser_download_url']
+        else:
+            logger.error(f"未找到匹配的可执行文件，assets列表: {[asset['name'] for asset in self.assets]}")
+            if self.console:
+                self.console.print(f"[red]未找到匹配的可执行文件[/red]")
+            return None
     
     def _download_file(self, url: str, save_path: str) -> bool:
         """下载文件

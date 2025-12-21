@@ -418,6 +418,17 @@ class NetworkToolsPlugin(Plugin):
                 release_url = data.get('html_url', '')
                 release_notes = data.get('body', '')
                 
+                # 提取assets信息
+                assets = data.get('assets', [])
+                asset_list = []
+                for asset in assets:
+                    asset_list.append({
+                        'name': asset.get('name', ''),
+                        'browser_download_url': asset.get('browser_download_url', ''),
+                        'size': asset.get('size', 0),
+                        'content_type': asset.get('content_type', '')
+                    })
+                
                 # 比较版本
                 is_update_available = self._compare_versions(current_version, latest_version)
                 
@@ -427,7 +438,8 @@ class NetworkToolsPlugin(Plugin):
                     'latest_version': latest_version,
                     'update_available': is_update_available,
                     'release_url': release_url,
-                    'release_notes': release_notes
+                    'release_notes': release_notes,
+                    'assets': asset_list
                 }
                 
         except urllib.error.URLError as e:
