@@ -6,19 +6,22 @@
 
 ## ✨ 功能特性
 
-### 🖥️ 系统工具
+### 🛠️ 平台工具
+平台提供的通用工具集，包含系统工具、文件工具、Python工具。
+
+#### 🖥️ 系统工具
 - **系统信息** - 显示详细的系统信息
 - **网络信息** - 查看网络配置
 - **进程列表** - 列出所有运行中的进程
 - **磁盘空间** - 显示磁盘使用情况
 - **系统运行时间** - 查看系统运行时长
 
-### 📁 文件工具
+#### 📁 文件工具
 - **目录列表** - 列出目录内容
 - **文件树** - 显示文件系统树状结构
 - **文件搜索** - 搜索文件系统中的文件
 
-### 🐍 Python工具
+#### 🐍 Python工具
 - **Python信息** - 显示Python环境信息
 - **Python包** - 列出已安装的Python包
 - **检查导入** - 检查Python模块导入
@@ -27,6 +30,8 @@
 - 支持插件扩展
 - 动态加载插件
 - 插件命令管理
+- 插件菜单集成
+- 插件开发接口
 
 ### ⚙️ 配置管理
 - 查看和修改应用配置
@@ -113,33 +118,51 @@ python main.py
 
 ```python
 # plugins/example_plugin.py
-from core.plugin_manager import FastXPlugin, PluginInfo
+from core.plugin_manager import Plugin, PluginInfo
+from core.menu_system import MenuSystem, ActionItem, CommandType
 
-class ExamplePlugin(FastXPlugin):
-    def __init__(self):
-        super().__init__()
-        # 设置插件基本信息
-        self.name = "Example Plugin"
-        self.version = "1.0.0"
-        self.description = "一个示例插件"
-        self.author = "Your Name"
-        self.repository = "https://github.com/yourusername/example-plugin"
-        self.license = "MIT"
+class ExamplePlugin(Plugin):
+    """示例插件"""
     
-    def initialize(self) -> bool:
-        """初始化插件"""
-        self.logger.info("Example Plugin initialized")
-        return True
-    
-    def register_commands(self):
-        """注册命令到菜单系统"""
-        from core.menu_system import ActionItem, CommandType
+    def get_info(self) -> PluginInfo:
+        """获取插件信息
         
-        if not self.menu_system:
-            return
-            
+        必须实现此方法，返回插件的详细信息
+        """
+        return PluginInfo(
+            name="Example Plugin",
+            version="1.0.0",
+            author="Your Name",
+            description="一个示例插件",
+            enabled=True,
+            repository="https://github.com/yourusername/example-plugin",
+            license="MIT"
+        )
+    
+    def initialize(self):
+        """初始化插件
+        
+        必须实现此方法，用于初始化插件的资源、连接数据库等
+        """
+        self.logger.info("Example Plugin initialized")
+    
+    def cleanup(self):
+        """清理插件资源
+        
+        必须实现此方法，用于清理插件使用的资源，如关闭连接、释放内存等
+        """
+        self.logger.info("Example Plugin cleaned up")
+    
+    def register(self, menu_system: MenuSystem):
+        """注册插件命令到菜单系统
+        
+        必须实现此方法，用于将插件命令注册到菜单系统中
+        
+        参数：
+        - menu_system: 菜单系统实例，用于注册命令和菜单
+        """
         # 注册命令
-        self.menu_system.register_item(ActionItem(
+        menu_system.register_item(ActionItem(
             id="example_command",
             name="示例命令",
             description="这是一个示例命令",
@@ -151,26 +174,6 @@ class ExamplePlugin(FastXPlugin):
     def example_function(self):
         """示例命令执行函数"""
         return "示例命令执行成功！"
-    
-    def get_plugin_info(self) -> PluginInfo:
-        """获取插件信息"""
-        return PluginInfo(
-            name=self.name,
-            version=self.version,
-            author=self.author,
-            description=self.description,
-            enabled=True,
-            repository=self.repository,
-            license=self.license
-        )
-    
-    def cleanup(self):
-        """清理插件资源"""
-        self.logger.info("Example Plugin cleaned up")
-        
-    def on_unload(self):
-        """插件卸载时调用"""
-        self.logger.info("Example Plugin unloaded")
 ```
 
 #### 向后兼容的插件结构
@@ -183,12 +186,18 @@ class LegacyPlugin(Plugin):
     def __init__(self):
         super().__init__()
     
-    def initialize_old(self):
-        """初始化插件（旧版方法）"""
-        self.logger.info("Legacy Plugin initialized")
+    def get_info(self) -> PluginInfo:
+        """获取插件信息"""
+        return PluginInfo(
+            name="Legacy Plugin",
+            version="1.0.0",
+            author="Your Name",
+            description="一个旧版示例插件",
+            enabled=True
+        )
     
     def register(self, menu_system):
-        """注册插件到菜单系统（旧版方法）"""
+        """注册插件到菜单系统"""
         from core.menu_system import ActionItem, CommandType
         
         # 注册命令
@@ -201,23 +210,17 @@ class LegacyPlugin(Plugin):
             python_func=self.legacy_function
         ))
     
-    def get_info(self) -> PluginInfo:
-        """获取插件信息（旧版方法）"""
-        return PluginInfo(
-            name="Legacy Plugin",
-            version="1.0.0",
-            author="Your Name",
-            description="一个旧版示例插件",
-            enabled=True
-        )
+    def initialize(self):
+        """初始化插件"""
+        self.logger.info("Legacy Plugin initialized")
+    
+    def cleanup(self):
+        """清理插件资源"""
+        self.logger.info("Legacy Plugin cleaned up")
     
     def legacy_function(self):
         """旧版示例命令执行函数"""
         return "旧版示例命令执行成功！"
-    
-    def cleanup_old(self):
-        """清理插件资源（旧版方法）"""
-        self.logger.info("Legacy Plugin cleaned up")
 ```
 
 ### 插件加载
