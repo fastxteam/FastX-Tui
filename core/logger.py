@@ -25,8 +25,11 @@ class Logger:
             enqueue=True  # 异步日志
         )
         
+        # 获取应用程序所在目录
+        app_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        
         # 创建日志目录
-        log_dir = "logs"
+        log_dir = os.path.join(app_dir, "logs")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         
@@ -55,8 +58,11 @@ class Logger:
             enqueue=True
         )
         
+        # 获取应用程序所在目录
+        app_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        
         # 添加文件处理器
-        log_dir = "logs"
+        log_dir = os.path.join(app_dir, "logs")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         

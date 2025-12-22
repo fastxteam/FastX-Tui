@@ -43,9 +43,17 @@ class AppManager:
         # 初始化视图管理器
         self.view_manager = ViewManager(self.console, self.config_manager)
         
+        # 获取应用程序所在目录
+        app_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        
         # 初始化插件管理器
+        plugin_dir = self.config_manager.get_config("plugin_directory", "plugins")
+        # 如果插件目录不是绝对路径，则使用应用程序目录作为基础
+        if not os.path.isabs(plugin_dir):
+            plugin_dir = os.path.join(app_dir, plugin_dir)
+        
         self.plugin_manager = PluginManager(
-            self.config_manager.get_config("plugin_directory", "plugins"),
+            plugin_dir,
             self.config_manager
         )
         
