@@ -477,20 +477,24 @@ class PluginManager:
     
     def install_plugin_from_github(self, repo_url: str) -> bool:
         """从GitHub仓库安装插件"""
+        import subprocess
+        import os
+        import shutil
+        
+        # 提取仓库名
+        if repo_url.endswith('.git'):
+            repo_name = repo_url.split('/')[-1][:-4]
+        else:
+            repo_name = repo_url.split('/')[-1]
+        
+        # 初始化插件路径
+        plugin_path = os.path.join(self.plugin_dir, repo_name)
+        
         try:
-            import subprocess
-            import os
-            
             # 检查repo_url是否是有效的GitHub仓库URL
             if not repo_url.startswith('https://github.com/') and not repo_url.startswith('git@github.com:'):
                 self.logger.error(f"无效的GitHub仓库URL: {repo_url}")
                 return False
-            
-            # 提取仓库名
-            if repo_url.endswith('.git'):
-                repo_name = repo_url.split('/')[-1][:-4]
-            else:
-                repo_name = repo_url.split('/')[-1]
             
             # 检查仓库名是否符合FastX-Tui插件命名规范
             if not repo_name.startswith('FastX-Tui-Plugin-'):
@@ -498,10 +502,22 @@ class PluginManager:
                 return False
             
             # 检查插件目录是否已存在
-            plugin_path = os.path.join(self.plugin_dir, repo_name)
             if os.path.exists(plugin_path):
-                self.logger.error(f"插件 {repo_name} 已存在")
-                return False
+                # 检查目录是否包含有效的插件文件
+                fastx_plugin_file = os.path.join(plugin_path, 'fastx_plugin.py')
+                if os.path.isfile(fastx_plugin_file):
+                    # 目录包含有效的插件文件，认为插件已存在
+                    self.logger.error(f"插件 {repo_name} 已存在")
+                    return False
+                else:
+                    # 目录存在但不包含有效的插件文件，删除空目录或无效目录
+                    self.logger.warning(f"发现无效的插件目录 {repo_name}，将删除后重新安装")
+                    try:
+                        shutil.rmtree(plugin_path)
+                    except Exception as e:
+                        self.logger.error(f"删除无效插件目录失败: {str(e)}")
+                        self.logger.error(f"请手动删除目录 {plugin_path} 后重试")
+                        return False
             
             # 使用git clone命令下载仓库
             self.logger.info(f"正在从GitHub下载插件: {repo_url}")
@@ -516,7 +532,6 @@ class PluginManager:
             if not os.path.isfile(os.path.join(plugin_path, 'fastx_plugin.py')):
                 self.logger.error(f"插件 {repo_name} 缺少fastx_plugin.py入口文件")
                 # 清理已下载的仓库
-                import shutil
                 shutil.rmtree(plugin_path)
                 return False
             
@@ -525,9 +540,23 @@ class PluginManager:
             
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Git克隆失败: {e.stderr}")
+            # 清理已创建的目录
+            if os.path.exists(plugin_path):
+                try:
+                    shutil.rmtree(plugin_path)
+                except Exception as cleanup_e:
+                    self.logger.error(f"清理已创建目录失败: {str(cleanup_e)}")
+                    self.logger.error(f"请手动删除目录 {plugin_path} 后重试")
             return False
         except Exception as e:
             self.logger.error(f"安装插件失败: {str(e)}")
+            # 清理已创建的目录
+            if os.path.exists(plugin_path):
+                try:
+                    shutil.rmtree(plugin_path)
+                except Exception as cleanup_e:
+                    self.logger.error(f"清理已创建目录失败: {str(cleanup_e)}")
+                    self.logger.error(f"请手动删除目录 {plugin_path} 后重试")
             return False
     
     def reload_plugin(self, plugin_name: str) -> bool:
