@@ -87,8 +87,9 @@ class PluginInterface:
             "4. 启用/禁用插件",
             "5. 浏览在线插件",
             "6. 安装在线插件",
-            "7. 更新插件",
-            "8. 卸载插件",
+            "7. 创建新插件",
+            "8. 更新插件",
+            "9. 卸载插件",
             "0. 返回主菜单",
             "q. 退出"
         ]
@@ -139,8 +140,10 @@ class PluginInterface:
         elif choice == '6':
             self._install_online_plugin()
         elif choice == '7':
-            self._update_plugins()
+            self._create_new_plugin()
         elif choice == '8':
+            self._update_plugins()
+        elif choice == '9':
             self._uninstall_plugin()
         
         if choice != '0' and choice != 'q':
@@ -534,6 +537,36 @@ class PluginInterface:
                 self.console.print(f"\n[red]❌ 无效的插件编号[/red]")
         except ValueError:
             self.console.print(f"\n[red]❌ 无效的输入[/red]")
+    
+    def _create_new_plugin(self):
+        """创建新插件"""
+        self.console.clear()
+        self.console.print("=" * 80)
+        self.console.print("✨ 创建新插件".center(80), style="bold cyan")
+        self.console.print("=" * 80)
+        self.console.print()
+        
+        # 导入PythonOperations
+        from core.operations import PythonOperations
+        
+        # 获取用户输入
+        plugin_name = self.console.input("请输入插件名称 (英文，用于目录和类名): ").strip()
+        if not plugin_name:
+            self.console.print("\n[red]❌ 插件名称不能为空[/red]")
+            return
+        
+        plugin_display_name = self.console.input("请输入插件显示名称 (中文，用于界面显示，直接回车使用插件名称): ").strip()
+        
+        # 创建插件
+        self.console.print(f"\n正在创建插件 '{plugin_name}'...")
+        result = PythonOperations.create_plugin(plugin_name, plugin_display_name)
+        
+        # 显示结果
+        self.console.print(f"\n{result}")
+        
+        # 刷新插件列表
+        self.console.print("\n正在刷新插件列表...")
+        self._reload_plugins()
     
     def _uninstall_plugin(self):
         """卸载插件"""

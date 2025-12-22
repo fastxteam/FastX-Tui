@@ -153,8 +153,8 @@ class PluginManager:
             elif os.path.isdir(item_path):
                 # 检查是否是FastX-Tui插件仓库（命名格式：FastX-Tui-Plugin-{PluginName}）
                 if item.startswith('FastX-Tui-Plugin-'):
-                    # 检查仓库中是否有fastx_plugin.py入口文件
-                    if os.path.isfile(os.path.join(item_path, 'fastx_plugin.py')):
+                    # 检查仓库中是否有fastx_tui_plugin.py入口文件
+                    if os.path.isfile(os.path.join(item_path, 'fastx_tui_plugin.py')):
                         # 使用仓库名作为插件名
                         plugin_files.append(item)
         
@@ -169,8 +169,8 @@ class PluginManager:
             
             if is_repo_plugin:
                 # GitHub仓库插件
-                entry_file = os.path.join(plugin_path, 'fastx_plugin.py')
-                module_name = f"fastx_plugin_{plugin_name}"
+                entry_file = os.path.join(plugin_path, 'fastx_tui_plugin.py')
+                module_name = f"fastx_tui_plugin_{plugin_name}"
             else:
                 # 单个.py文件插件（兼容旧版本）
                 entry_file = os.path.join(self.plugin_dir, f"{plugin_name}.py")
@@ -504,7 +504,7 @@ class PluginManager:
             # 检查插件目录是否已存在
             if os.path.exists(plugin_path):
                 # 检查目录是否包含有效的插件文件
-                fastx_plugin_file = os.path.join(plugin_path, 'fastx_plugin.py')
+                fastx_plugin_file = os.path.join(plugin_path, 'fastx_tui_plugin.py')
                 if os.path.isfile(fastx_plugin_file):
                     # 目录包含有效的插件文件，认为插件已存在
                     self.logger.error(f"插件 {repo_name} 已存在")
@@ -528,9 +528,9 @@ class PluginManager:
                 text=True
             )
             
-            # 检查仓库中是否有fastx_plugin.py入口文件
-            if not os.path.isfile(os.path.join(plugin_path, 'fastx_plugin.py')):
-                self.logger.error(f"插件 {repo_name} 缺少fastx_plugin.py入口文件")
+            # 检查仓库中是否有fastx_tui_plugin.py入口文件
+            if not os.path.isfile(os.path.join(plugin_path, 'fastx_tui_plugin.py')):
+                self.logger.error(f"插件 {repo_name} 缺少fastx_tui_plugin.py入口文件")
                 # 清理已下载的仓库
                 shutil.rmtree(plugin_path)
                 return False
@@ -685,6 +685,7 @@ class PluginRepository:
             import sys
             import subprocess
             import importlib.util
+            import requests
             
             with tempfile.TemporaryDirectory() as temp_dir:
                 # 克隆仓库到临时目录
@@ -699,10 +700,10 @@ class PluginRepository:
                     clone_dir
                 ], check=True, timeout=30, capture_output=True, text=True)
                 
-                # 检查fastx_plugin.py是否存在
-                fastx_plugin_path = os.path.join(clone_dir, 'fastx_plugin.py')
+                # 检查fastx_tui_plugin.py是否存在
+                fastx_plugin_path = os.path.join(clone_dir, 'fastx_tui_plugin.py')
                 if not os.path.exists(fastx_plugin_path):
-                    self.logger.error(f"仓库 {repo_url} 中没有找到fastx_plugin.py")
+                    self.logger.error(f"仓库 {repo_url} 中没有找到fastx_tui_plugin.py")
                     return None
                 
                 # 添加克隆目录到sys.path，这样插件的依赖模块才能被找到
@@ -736,6 +737,29 @@ class PluginRepository:
                                         user = parts[0]
                                         repo = parts[1]
                                         
+                                        # 从GitHub API获取动态数据
+                                        rating = plugin_info.rating
+                                        downloads = plugin_info.downloads
+                                        
+                                        try:
+                                            # 使用GitHub API获取仓库信息
+                                            api_url = f"https://api.github.com/repos/{user}/{repo}"
+                                            headers = {
+                                                "Accept": "application/vnd.github.v3+json"
+                                            }
+                                            response = requests.get(api_url, headers=headers, timeout=5)
+                                            if response.status_code == 200:
+                                                repo_data = response.json()
+                                                # 使用仓库星级作为评分（转换为0-5分制）
+                                                rating = round(repo_data.get("stargazers_count", 0) / 20, 1)  # 假设最多100星，转换为5分制
+                                                if rating > 5.0:
+                                                    rating = 5.0
+                                                # 使用仓库forks_count作为下载量（GitHub API没有直接的下载量字段）
+                                                downloads = repo_data.get("forks_count", 0)
+                                        except Exception as api_e:
+                                            self.logger.debug(f"获取GitHub API数据失败: {str(api_e)}")
+                                            # 如果API调用失败，使用插件中定义的默认值
+                                        
                                         # 转换为字典
                                         return {
                                             "id": f"{user}-{repo}",
@@ -745,8 +769,8 @@ class PluginRepository:
                                             "description": plugin_info.description,
                                             "category": plugin_info.category,
                                             "tags": plugin_info.tags,
-                                            "rating": plugin_info.rating,
-                                            "downloads": plugin_info.downloads,
+                                            "rating": rating,
+                                            "downloads": downloads,
                                             "repository": repo_url,
                                             "homepage": repo_url,
                                             "license": plugin_info.license,
