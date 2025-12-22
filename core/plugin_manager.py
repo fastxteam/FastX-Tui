@@ -582,7 +582,8 @@ class PluginRepository:
         
         # 示例插件仓库列表，只包含仓库地址，信息通过get_plugin_info_from_github动态获取
         self.example_plugin_repos = [
-            "https://github.com/fastxteam/FastX-Tui-Plugin-Example.git"
+            "https://github.com/fastxteam/FastX-Tui-Plugin-Example.git",
+            "https://github.com/fastxteam/FastX-Tui-Plugin-DEMFaultAnalyzer.git"
         ]
         
         # 缓存插件信息
