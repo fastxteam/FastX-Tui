@@ -81,95 +81,7 @@ class SystemOperations:
         
         return "\n".join(info)
     
-    @staticmethod
-    def create_plugin(plugin_name: str, plugin_display_name: str = "") -> str:
-        """创建FastX-Tui插件脚手架
-        
-        Args:
-            plugin_name: 插件名称（英文，用于目录和类名）
-            plugin_display_name: 插件显示名称（中文，用于界面显示）
-            
-        Returns:
-            创建结果信息
-        """
-        import shutil
-        import subprocess
-        from pathlib import Path
-        
-        # 设置插件目录
-        plugins_dir = "plugins"
-        plugin_dir_name = f"FastX-Tui-Plugin-{plugin_name}"
-        plugin_path = Path(plugins_dir) / plugin_dir_name
-        
-        # 如果显示名称未提供，使用插件名称
-        if not plugin_display_name:
-            plugin_display_name = plugin_name
-        
-        try:
-            # 检查cookiecutter是否安装
-            try:
-                subprocess.run([sys.executable, "-m", "cookiecutter", "--version"], 
-                              capture_output=True, text=True, check=True)
-            except subprocess.CalledProcessError:
-                # 安装cookiecutter
-                subprocess.run([sys.executable, "-m", "pip", "install", "cookiecutter"], 
-                              capture_output=True, text=True, check=True)
-            
-            # 创建插件目录
-            plugin_path.mkdir(parents=True, exist_ok=True)
-            
-            # 构建cookiecutter命令
-            cookiecutter_dir = Path("cookiecutter-fastx-tui-plugin-templates")
-            
-            # 如果本地有cookiecutter模板，使用本地模板
-            if cookiecutter_dir.exists():
-                cmd = [
-                    sys.executable, "-m", "cookiecutter", 
-                    str(cookiecutter_dir),
-                    "--output-dir", plugins_dir,
-                    "--no-input",
-                    f"plugin_name={plugin_name}",
-                    f"plugin_display_name={plugin_display_name}",
-                    f"plugin_description=FastX-Tui插件示例",
-                    f"plugin_author=Your Name",
-                    f"plugin_version=1.0.0",
-                    f"plugin_category=工具",
-                    f"plugin_tags=['示例', '工具']",
-                    f"plugin_repository=",
-                    f"license=MIT",
-                    f"year={datetime.now().year}"
-                ]
-            else:
-                # 使用GitHub上的模板
-                cmd = [
-                    sys.executable, "-m", "cookiecutter", 
-                    "https://github.com/fastxteam/cookiecutter-fastx-tui-plugin-templates.git",
-                    "--output-dir", plugins_dir,
-                    "--no-input",
-                    f"plugin_name={plugin_name}",
-                    f"plugin_display_name={plugin_display_name}",
-                    f"plugin_description=FastX-Tui插件示例",
-                    f"plugin_author=Your Name",
-                    f"plugin_version=1.0.0",
-                    f"plugin_category=工具",
-                    f"plugin_tags=['示例', '工具']",
-                    f"plugin_repository=",
-                    f"license=MIT",
-                    f"year={datetime.now().year}"
-                ]
-            
-            # 执行cookiecutter命令
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            
-            if result.returncode == 0:
-                return f"✅ 插件 '{plugin_display_name}' 创建成功！\n" \
-                       f"📁 插件目录: {plugin_path}\n" \
-                       f"🚀 插件已准备就绪，可以开始开发。"
-            else:
-                return f"❌ 插件创建失败: {result.stderr}"
-                
-        except Exception as e:
-            return f"❌ 插件创建过程中出错: {str(e)}"
+
     
     @staticmethod
     def get_network_info() -> str:
@@ -635,3 +547,152 @@ class PythonOperations:
         info.append(f"\n📊 统计: {available}/{len(common_packages)} 个常用包已安装")
         
         return "\n".join(info)
+    
+    @staticmethod
+    def create_plugin(plugin_name: str, plugin_display_name: str = "") -> str:
+        """创建FastX-Tui插件脚手架
+        
+        Args:
+            plugin_name: 插件名称（英文，用于目录和类名）
+            plugin_display_name: 插件显示名称（中文，用于界面显示）
+            
+        Returns:
+            创建结果信息
+        """
+        import subprocess
+        import shutil
+        from pathlib import Path
+        
+        # 设置插件目录，使用指定前缀
+        plugins_dir = "plugins"
+        plugin_dir_name = f"FastX-Tui-Plugin-{plugin_name}"  # 使用指定的插件前缀
+        plugin_path = Path(plugins_dir) / plugin_dir_name
+        
+        # 如果显示名称未提供，使用插件名称
+        if not plugin_display_name:
+            plugin_display_name = plugin_name
+        
+        try:
+            # 确保插件目录存在
+            Path(plugins_dir).mkdir(parents=True, exist_ok=True)
+            
+            # 检查git是否可用
+            try:
+                subprocess.run(
+                    ["git", "--version"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                return "❌ 错误: Git命令不可用，请先安装Git。"
+            
+            # 检查cookiecutter是否已安装
+            cookiecutter_installed = False
+            try:
+                subprocess.run(
+                    [sys.executable, "-m", "cookiecutter", "--version"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                cookiecutter_installed = True
+            except subprocess.CalledProcessError:
+                pass
+            
+            if not cookiecutter_installed:
+                # 尝试使用pip安装cookiecutter
+                try:
+                    install_result = subprocess.run(
+                        [sys.executable, "-m", "pip", "install", "cookiecutter"],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    cookiecutter_installed = True
+                except subprocess.CalledProcessError:
+                    # 如果pip安装失败，尝试使用uv安装
+                    try:
+                        subprocess.run(
+                            [sys.executable, "-m", "uv", "pip", "install", "cookiecutter"],
+                            capture_output=True,
+                            text=True,
+                            check=True
+                        )
+                        cookiecutter_installed = True
+                    except subprocess.CalledProcessError as e:
+                        return f"❌ 错误: 无法安装cookiecutter: {str(e)}"
+            
+            # 使用本地模板目录
+            local_template = Path("./{{cookiecutter.plugin_name}}")
+            
+            # 检查模板目录是否存在
+            if not local_template.exists():
+                return f"❌ 错误: 模板目录 {local_template} 不存在。请确保cookiecutter模板已正确创建。"
+            
+            # 临时目录用于生成插件
+            temp_dir = Path(plugins_dir) / plugin_name
+            
+            # 使用cookiecutter生成插件
+            try:
+                # 构建cookiecutter命令，确保参数格式正确
+                cmd = [
+                    sys.executable, "-m", "cookiecutter",
+                    str(local_template.parent),
+                    "--output-dir", plugins_dir,
+                    "--no-input"
+                ]
+                
+                # 添加参数，避免使用空格和特殊字符
+                cmd.extend([
+                    f"plugin_name={plugin_name}",
+                    f"plugin_display_name={plugin_display_name}",
+                    f"plugin_description={plugin_display_name}是一个FastX-Tui插件",
+                    "plugin_author=YourName",  # 避免空格
+                    "plugin_version=1.0.0",
+                    f"plugin_category={plugin_display_name}",
+                    "plugin_tags=示例",  # 单个标签，符合cookiecutter的choice要求
+                    "plugin_repository=",
+                    "license=MIT",
+                    "year=2025"
+                ])
+                
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                
+            except subprocess.CalledProcessError as e:
+                # 显示详细错误信息
+                return f"❌ 错误: 无法使用cookiecutter生成插件: {str(e)}\n" \
+                       f"命令: {' '.join(cmd)}\n" \
+                       f"输出: {e.output}" \
+                       f"错误: {e.stderr}"
+            
+            # 确保临时目录已创建
+            if not temp_dir.exists():
+                return f"❌ 错误: 插件临时目录未创建成功。"
+            
+            # 重命名目录，添加指定前缀
+            try:
+                if plugin_path.exists():
+                    # 如果目标目录已存在，先删除
+                    shutil.rmtree(plugin_path)
+                temp_dir.rename(plugin_path)
+            except Exception as e:
+                return f"❌ 错误: 无法重命名插件目录: {str(e)}"
+            
+            # 验证插件入口文件是否生成
+            fastx_tui_plugin_path = plugin_path / "fastx_tui_plugin.py"
+            if not fastx_tui_plugin_path.exists():
+                return f"❌ 错误: 插件入口文件未生成。"
+            
+            return f"✅ 插件 '{plugin_display_name}' 创建成功！\n" \
+                   f"📁 插件目录: {plugin_path}\n" \
+                   f"🚀 插件已准备就绪，可以开始开发。"
+            
+        except Exception as e:
+            import traceback
+            return f"❌ 插件创建过程中出错: {str(e)}\n{traceback.format_exc()}"

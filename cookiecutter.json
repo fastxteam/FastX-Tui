@@ -5,7 +5,7 @@
     "plugin_author": "Your Name",
     "plugin_version": "1.0.0",
     "plugin_category": "工具",
-    "plugin_tags": ["示例", "工具"],
+    "plugin_tags": "示例",
     "plugin_repository": "",
     "license": "MIT",
     "year": "{{ cookiecutter.year }}"

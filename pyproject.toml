@@ -8,7 +8,16 @@ version = "0.1.37"
 description = "FastX TUI - 统一视图架构版本"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [ "loguru>=0.7.3", "psutil>=5.9.0", "pyyaml>=6.0", "rich>=13.0.0", "setuptools>=80.9.0", "requests>=2.31.0", "toml>=0.10.2",]
+dependencies = [
+ "loguru>=0.7.3",
+ "psutil>=5.9.0",
+ "pyyaml>=6.0",
+ "rich>=13.0.0",
+ "setuptools>=80.9.0",
+ "requests>=2.31.0",
+ "toml>=0.10.2",
+ "cookiecutter>=2.6.0",
+]
 
 [project.scripts]
 fastx-tui = "main:main"

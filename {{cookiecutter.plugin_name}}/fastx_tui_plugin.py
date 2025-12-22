@@ -19,7 +19,7 @@ class {{ cookiecutter.plugin_name }}Plugin(Plugin):
             author="{{ cookiecutter.plugin_author }}",
             description="{{ cookiecutter.plugin_description }}",
             category="{{ cookiecutter.plugin_category }}",
-            tags={{ cookiecutter.plugin_tags }},
+            tags=["{{ cookiecutter.plugin_tags }}"],
             compatibility={"fastx-tui": ">=1.0.0"},
             dependencies=[],
             repository="{{ cookiecutter.plugin_repository }}",
@@ -28,18 +28,32 @@ class {{ cookiecutter.plugin_name }}Plugin(Plugin):
     
     def register(self, menu_system: MenuSystem):
         """注册插件到菜单系统"""
-        # 注册命令到菜单系统
-        menu_system.add_action(
-            ActionItem(
-                name="{{ cookiecutter.plugin_display_name }}命令",
-                description="执行{{ cookiecutter.plugin_display_name }}命令",
-                command="{{ cookiecutter.plugin_name.lower() }}_command",
-                command_type=CommandType.PLUGIN,
-                callback=self.example_command,
-                category="{{ cookiecutter.plugin_display_name }}",
-                plugin=self
-            )
+        # 创建插件的主菜单
+        plugin_main_menu = menu_system.create_submenu(
+            menu_id='{{ cookiecutter.plugin_name.lower() }}_main_menu',
+            name='{{ cookiecutter.plugin_display_name }}',
+            description='{{ cookiecutter.plugin_display_name }}相关命令',
+            icon='🔌'
         )
+        
+        # 注册示例命令
+        example_command = ActionItem(
+            id='{{ cookiecutter.plugin_name.lower() }}_example_command',
+            name='示例命令',
+            description='执行{{ cookiecutter.plugin_display_name }}示例命令',
+            command_type=CommandType.PYTHON,
+            python_func=self.example_command,
+            category='{{ cookiecutter.plugin_display_name }}'
+        )
+        menu_system.register_item(example_command)
+        
+        # 将命令添加到插件主菜单
+        plugin_main_menu.add_item(example_command.id)
+        
+        # 将插件主菜单添加到FastX-Tui主菜单
+        main_menu = menu_system.get_item_by_id('main_menu')
+        if hasattr(main_menu, 'add_item'):
+            main_menu.add_item(plugin_main_menu.id)
     
     def initialize(self):
         """初始化插件"""

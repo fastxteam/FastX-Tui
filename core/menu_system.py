@@ -304,3 +304,34 @@ class MenuSystem:
             menu.remove_item(item)
             return True
         return False
+    
+    def add_action(self, action: ActionItem):
+        """添加动作项到菜单系统，用于插件注册"""
+        # 注册动作项
+        self.register_item(action)
+        
+        # 检查是否需要创建插件分类菜单
+        category = action.category
+        
+        # 尝试获取主菜单
+        main_menu = self.get_item_by_id("main_menu")
+        if not isinstance(main_menu, MenuNode):
+            return
+        
+        # 检查是否已存在该分类的菜单
+        category_menu_id = f"menu_{category.lower().replace(' ', '_')}"
+        category_menu = self.get_item_by_id(category_menu_id)
+        
+        if not isinstance(category_menu, MenuNode):
+            # 创建分类菜单
+            category_menu = self.create_submenu(
+                menu_id=category_menu_id,
+                name=category,
+                description=f"{category}相关命令",
+                icon="🔌"
+            )
+            # 将分类菜单添加到主菜单
+            self.add_item_to_main_menu(category_menu_id)
+        
+        # 将动作项添加到分类菜单
+        self.add_item_to_menu(category_menu_id, action.id)
