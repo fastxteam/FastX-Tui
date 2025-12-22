@@ -623,53 +623,95 @@ class PythonOperations:
                     except subprocess.CalledProcessError as e:
                         return f"❌ 错误: 无法安装cookiecutter: {str(e)}"
             
-            # 使用本地模板目录
-            local_template = Path("./{{cookiecutter.plugin_name}}")
-            
-            # 检查模板目录是否存在
-            if not local_template.exists():
-                return f"❌ 错误: 模板目录 {local_template} 不存在。请确保cookiecutter模板已正确创建。"
-            
             # 临时目录用于生成插件
             temp_dir = Path(plugins_dir) / plugin_name
             
+            # 优先使用本地模板
+            local_template = Path("./{{cookiecutter.plugin_name}}")
+            # GitHub模板作为后备
+            github_template = "https://github.com/fastxteam/FastX-Tui.git"
+            
             # 使用cookiecutter生成插件
+            generated = False
+            cmd = None
+            
             try:
-                # 构建cookiecutter命令，确保参数格式正确
-                cmd = [
-                    sys.executable, "-m", "cookiecutter",
-                    str(local_template.parent),
-                    "--output-dir", plugins_dir,
-                    "--no-input"
-                ]
-                
-                # 添加参数，避免使用空格和特殊字符
-                cmd.extend([
-                    f"plugin_name={plugin_name}",
-                    f"plugin_display_name={plugin_display_name}",
-                    f"plugin_description={plugin_display_name}是一个FastX-Tui插件",
-                    "plugin_author=YourName",  # 避免空格
-                    "plugin_version=1.0.0",
-                    f"plugin_category={plugin_display_name}",
-                    "plugin_tags=示例",  # 单个标签，符合cookiecutter的choice要求
-                    "plugin_repository=",
-                    "license=MIT",
-                    "year=2025"
-                ])
-                
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
-                
-            except subprocess.CalledProcessError as e:
-                # 显示详细错误信息
-                return f"❌ 错误: 无法使用cookiecutter生成插件: {str(e)}\n" \
-                       f"命令: {' '.join(cmd)}\n" \
-                       f"输出: {e.output}" \
-                       f"错误: {e.stderr}"
+                # 尝试使用本地模板
+                if local_template.exists():
+                    cmd = [
+                        sys.executable, "-m", "cookiecutter",
+                        str(local_template.parent),
+                        "--output-dir", plugins_dir,
+                        "--no-input"
+                    ]
+                    
+                    # 添加参数，避免使用空格和特殊字符
+                    cmd.extend([
+                        f"plugin_name={plugin_name}",
+                        f"plugin_display_name={plugin_display_name}",
+                        f"plugin_description={plugin_display_name}是一个FastX-Tui插件",
+                        "plugin_author=YourName",  # 避免空格
+                        "plugin_version=1.0.0",
+                        f"plugin_category={plugin_display_name}",
+                        "plugin_tags=示例",  # 单个标签，符合cookiecutter的choice要求
+                        "plugin_repository=",
+                        "license=MIT",
+                        "year=2025"
+                    ])
+                    
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    generated = True
+                else:
+                    # 本地模板不存在，直接尝试GitHub模板
+                    raise Exception(f"本地模板不存在: {local_template}")
+                    
+            except Exception as local_e:
+                # 本地模板失败或不存在，尝试使用GitHub模板
+                try:
+                    # 构建GitHub模板命令
+                    cmd = [
+                        sys.executable, "-m", "cookiecutter",
+                        github_template,
+                        "--output-dir", plugins_dir,
+                        "--no-input"
+                    ]
+                    
+                    # 添加参数
+                    cmd.extend([
+                        f"plugin_name={plugin_name}",
+                        f"plugin_display_name={plugin_display_name}",
+                        f"plugin_description={plugin_display_name}是一个FastX-Tui插件",
+                        "plugin_author=YourName",
+                        "plugin_version=1.0.0",
+                        f"plugin_category={plugin_display_name}",
+                        "plugin_tags=示例",
+                        "plugin_repository=",
+                        "license=MIT",
+                        "year=2025"
+                    ])
+                    
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    generated = True
+                    
+                except subprocess.CalledProcessError as github_e:
+                    # 本地模板和GitHub模板都失败，显示详细错误信息
+                    return f"❌ 错误: 无法使用本地模板或GitHub模板生成插件。\n" \
+                           f"本地错误: {str(local_e)}\n" \
+                           f"GitHub错误: {str(github_e)}" \
+                           f"本地模板路径: {local_template}"
+            
+            if not generated:
+                return f"❌ 错误: 无法生成插件。"
             
             # 确保临时目录已创建
             if not temp_dir.exists():
