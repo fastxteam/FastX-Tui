@@ -2,4 +2,4 @@
 """
 FastX-Tui 帮助功能模块
 """
-from .help_interface import HelpFeature
+from .help_interface import HelpInterface

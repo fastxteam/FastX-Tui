@@ -22,7 +22,7 @@ from core.logger import (
 from config.config_manager import ConfigManager
 
 
-class LogManager:
+class LoggingInterface:
     """日志管理器"""
 
     def __init__(self, console: Console, config_manager: ConfigManager):

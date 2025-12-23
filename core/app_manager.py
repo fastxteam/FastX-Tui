@@ -18,11 +18,11 @@ from core.update_manager import UpdateManager
 from core.network_tools import NetworkToolsPlugin
 from core.version import FULL_VERSION, VERSION
 from config.config_manager import ConfigManager
-from features.search import SearchFeature
-from features.help import HelpFeature
+from features.search.search_interface import SearchInterface
+from features.help.help_interface import HelpInterface
 from features.config.config_interface import ConfigInterface
 from features.plugin.plugin_interface import PluginInterface
-from features.log_management import LogManager
+from features.logging.logging_interface import LoggingInterface
 
 class AppManager:
     """应用管理器"""
@@ -58,10 +58,10 @@ class AppManager:
         )
         
         # 初始化搜索功能
-        self.search_feature = SearchFeature(self.menu_system, self.console, self.config_manager)
+        self.search_feature = SearchInterface(self.menu_system, self.console, self.config_manager)
         
         # 初始化帮助功能
-        self.help_feature = HelpFeature(self.console)
+        self.help_feature = HelpInterface(self.console)
         
         # 初始化配置功能
         self.config_interface = ConfigInterface(self.console, self.config_manager)
@@ -70,7 +70,7 @@ class AppManager:
         self.plugin_interface = PluginInterface(self.console, self.plugin_manager, self.menu_system, self.config_manager)
         
         # 初始化日志管理功能
-        self.log_manager = LogManager(self.console, self.config_manager)
+        self.log_manager = LoggingInterface(self.console, self.config_manager)
         
         # 初始化操作类
         self.operations = {

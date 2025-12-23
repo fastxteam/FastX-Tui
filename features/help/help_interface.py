@@ -28,7 +28,7 @@ else:
     import tty
 
 
-class HelpFeature:
+class HelpInterface:
     """帮助功能实现"""
 
     def __init__(self, console: Console):
