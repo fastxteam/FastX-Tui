@@ -8,7 +8,7 @@ import sys
 import time
 import psutil
 import socket
-import pkg_resources # pip install setuptools
+import importlib.metadata
 from typing import List, Dict
 from datetime import datetime
 
@@ -466,8 +466,8 @@ class PythonOperations:
         
         packages = []
         try:
-            for dist in pkg_resources.working_set:
-                packages.append((dist.project_name, dist.version))
+            for dist in importlib.metadata.distributions():
+                packages.append((dist.metadata['Name'], dist.version))
             
             # 按名称排序
             packages.sort(key=lambda x: x[0].lower())

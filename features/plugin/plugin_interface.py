@@ -3,12 +3,14 @@
 FastX-Tui 插件管理界面模块
 """
 import os
-import os
 import sys
 from typing import Optional
 from rich import box
 from rich.console import Console
-from rich.table import Table, box
+from rich.table import Table
+from rich.panel import Panel
+from rich.columns import Columns
+from rich.text import Text
 
 from core.plugin_manager import PluginManager, PluginRepository
 from core.menu_system import MenuSystem
@@ -17,15 +19,16 @@ from config.config_manager import ConfigManager
 
 class PluginInterface:
     """插件管理界面管理器"""
-    
-    def __init__(self, console: Console, plugin_manager: PluginManager, menu_system: MenuSystem, config_manager: ConfigManager):
+
+    def __init__(self, console: Console, plugin_manager: PluginManager, menu_system: MenuSystem,
+                 config_manager: ConfigManager):
         self.console = console
         self.plugin_manager = plugin_manager
         self.menu_system = menu_system
         self.config_manager = config_manager
         # 初始化插件仓库管理器
         self.plugin_repo = PluginRepository()
-    
+
     def show_plugin_interface(self, view_manager=None) -> bool:
         """显示插件管理界面"""
         while True:
@@ -38,74 +41,129 @@ class PluginInterface:
             elif choice == 'q':
                 return False
             self._handle_choice(choice, view_manager)
-    
+
     def _show_plugin_menu(self):
         """显示插件管理菜单"""
-        self.console.print("=" * 80)
-        self.console.print("🧩 插件管理中心".center(80), style="bold cyan")
-        self.console.print("=" * 80)
+        self.console.clear()
+
+        # 主标题
+        title_panel = Panel(
+            Text("插件管理中心", style="bold cyan"),
+            box=box.SIMPLE,
+            border_style="cyan",
+            padding=(0, 0)
+        )
+        self.console.print(title_panel)
         self.console.print()
-        
-        # 显示插件列表
+
+        # 获取插件列表
         plugins = self.plugin_manager.list_plugins()
-        
+
+        # 创建插件信息表格
+        plugin_table = Table(
+            show_header=True,
+            header_style="bold magenta",
+            box=box.SIMPLE,
+            border_style="blue",
+            show_lines=True
+        )
+        plugin_table.add_column("编号", style="cyan", justify="center", width=4)
+        plugin_table.add_column("状态", justify="center", width=4)
+        plugin_table.add_column("名称", style="bold white", min_width=18)
+        plugin_table.add_column("版本", style="green", justify="center", width=6)
+        plugin_table.add_column("作者", style="yellow", min_width=12)
+        plugin_table.add_column("描述", style="dim", ratio=2)
+
+        plugin_count = 0
         if plugins:
-            self.console.print(f"📦 已发现插件 ({len(plugins)}):")
-            
-            # 创建表格显示插件信息
-            table = Table(show_header=True, header_style="bold magenta", box=box.SIMPLE)
-            table.add_column("编号", style="cyan bold", justify="center")
-            table.add_column("状态", justify="center")
-            table.add_column("名称", style="white")
-            table.add_column("版本", style="green")
-            table.add_column("作者", style="yellow")
-            table.add_column("描述", style="dim")
-            
             for i, plugin_info in enumerate(plugins, 1):
-                status_icon = "✅" if plugin_info["enabled"] and plugin_info["loaded"] else "🔄" if plugin_info["enabled"] else "❌"
-                status = status_icon
-                table.add_row(
+                status = "●" if plugin_info["enabled"] and plugin_info["loaded"] else "○" if plugin_info[
+                    "enabled"] else "×"
+                status_style = "green" if plugin_info["enabled"] and plugin_info["loaded"] else "yellow" if plugin_info[
+                    "enabled"] else "red"
+                plugin_table.add_row(
                     f"{i}",
-                    status,
+                    Text(status, style=status_style),
                     plugin_info["display_name"],
                     f"v{plugin_info['version']}",
                     plugin_info["author"],
                     plugin_info["description"]
                 )
-            
-            self.console.print(table)
-            self.console.print()
-        else:
-            self.console.print(f"[yellow]暂无插件[/yellow]")
-            self.console.print()
-        
-        # 显示插件操作选项
-        menu_items = [
-            "1. 重新加载所有插件",
-            "2. 刷新插件列表",
-            "3. 显示插件目录",
-            "4. 启用/禁用插件",
-            "5. 浏览在线插件",
-            "6. 安装在线插件",
-            "7. 创建新插件",
-            "8. 更新插件",
-            "9. 卸载插件",
-            "0. 返回主菜单",
-            "q. 退出"
+                plugin_count += 1
+
+        # 插件列表面板
+        plugin_title = Text(f"已发现插件 ({plugin_count})", style="bold blue")
+        plugin_panel = Panel(
+            plugin_table if plugins else Text("暂无插件", style="yellow", justify="center"),
+            title=plugin_title,
+            border_style="blue",
+            box=box.ROUNDED,
+            padding=(0, 1)
+        )
+
+        # 创建操作命令表格
+        command_table = Table(
+            show_header=True,
+			header_style="bold magenta",
+            box=box.SIMPLE,
+            show_edge=False,
+            padding=(0, 1),
+            collapse_padding=True
+        )
+        command_table.add_column("命令", style="bold cyan", width=5)
+        command_table.add_column("操作", style="white", ratio=2)
+
+        commands = [
+            ("1", "重新加载所有插件"),
+            ("2", "刷新插件列表"),
+            ("3", "显示插件目录"),
+            ("4", "启用/禁用插件"),
+            ("5", "浏览在线插件"),
+            ("6", "安装在线插件"),
+            ("7", "创建新插件"),
+            ("8", "更新插件"),
+            ("9", "卸载插件")
         ]
-        
-        for item in menu_items:
-            self.console.print(item, style="white")
-        
-        self.console.print()
+
+        for cmd, desc in commands:
+            command_table.add_row(cmd, desc)
+
+        # 获取插件目录
         plugin_dir = self.config_manager.get_config("plugin_directory", "plugins")
-        self.console.print(f"📁 插件目录: {os.path.abspath(plugin_dir)}", style="bold yellow")
+        plugin_dir_path = os.path.abspath(plugin_dir)
+
+        # 操作面板
+        operation_title = Text(f"操作命令 - 插件目录: {plugin_dir_path}", style="bold green")
+        operation_panel = Panel(
+            command_table,
+            title=operation_title,
+			subtitle="0: 返回主菜单 | q: 退出 ",
+            subtitle_align="left",
+            border_style="green",
+            box=box.ROUNDED,
+            padding=(0, 1)
+        )
+
+        # 使用Columns创建布局
+        if plugins:
+            layout = Columns([
+                plugin_panel,
+                operation_panel
+            ], expand=True, padding=1)
+            self.console.print(layout)
+        else:
+            # 如果没有插件，只显示操作面板
+            self.console.print(operation_panel)
+
+        # 分隔线
         self.console.print()
-    
+        self.console.print("─" * 80, style="dim")
+
+        # 输入提示
+        self.console.print("\n请输入命令编号: ", style="bold green", end="")
+
     def _get_user_choice(self) -> str:
         """获取用户选择"""
-        self.console.print("请输入您的选择 (1-8, 0, q): ", style="bold green", end="")
-        
         # 使用无缓冲输入
         if sys.platform == "win32":
             import msvcrt
@@ -122,9 +180,9 @@ class PluginInterface:
                 self.console.print(choice)
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        
+
         return choice
-    
+
     def _handle_choice(self, choice: str, view_manager=None):
         """处理用户选择"""
         if choice == '1':
@@ -145,51 +203,62 @@ class PluginInterface:
             self._update_plugins()
         elif choice == '9':
             self._uninstall_plugin()
-        
+
         if choice != '0' and choice != 'q':
-            self.console.print("\n按任意键继续...", style="dim")
-            if sys.platform == "win32":
-                import msvcrt
-                msvcrt.getch()
-            else:
-                import termios
-                import tty
-                fd = sys.stdin.fileno()
-                old_settings = termios.tcgetattr(fd)
-                try:
-                    tty.setraw(sys.stdin.fileno())
-                    sys.stdin.read(1)
-                finally:
-                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    
+            self._wait_for_keypress()
+
+    def _wait_for_keypress(self):
+        """等待按键继续"""
+        self.console.print("\n按任意键继续...", style="dim")
+        if sys.platform == "win32":
+            import msvcrt
+            msvcrt.getch()
+        else:
+            import termios
+            import tty
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
+            try:
+                tty.setraw(sys.stdin.fileno())
+                sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
     def _browse_online_plugins(self):
         """浏览在线插件"""
         self.console.clear()
-        self.console.print("=" * 80)
-        self.console.print("🌐 浏览在线插件".center(80), style="bold green")
-        self.console.print("=" * 80)
-        
-        # 直接获取所有插件，跳过分类选择
-        self.console.print("正在获取所有插件...")
-        plugins = self.plugin_repo.get_plugins()
-        
-        # 支持搜索功能
+
+        title_panel = Panel(
+            Text("浏览在线插件", style="bold green"),
+            box=box.SIMPLE,
+            border_style="green",
+            padding=(0, 0)
+        )
+        self.console.print(title_panel)
         self.console.print()
+
+        # 支持搜索功能
         search_query = self.console.input("搜索插件 (直接回车跳过): ")
-        if search_query:
-            self.console.print(f"\n正在搜索 '{search_query}' 插件...")
-            plugins = self.plugin_repo.get_plugins(search=search_query)
-        
+
+        self.console.print("\n正在获取插件信息...")
+        plugins = self.plugin_repo.get_plugins(search=search_query)
+
         if plugins['plugins']:
-            self.console.print(f"\n找到 {plugins['total']} 个插件:")
-            table = Table(show_header=True, header_style="bold magenta", box=box.SIMPLE)
-            table.add_column("编号", style="cyan", justify="center")
-            table.add_column("名称", style="white")
-            table.add_column("版本", style="green")
-            table.add_column("作者", style="yellow")
-            table.add_column("评分", style="bold blue")
-            table.add_column("下载量", style="dim")
-            
+            # 创建插件表格
+            table = Table(
+                show_header=True,
+                header_style="bold magenta",
+                box=box.SIMPLE,
+                border_style="blue",
+                show_lines=True
+            )
+            table.add_column("编号", style="cyan", justify="center", width=4)
+            table.add_column("名称", style="bold white", min_width=20)
+            table.add_column("版本", style="green", justify="center", width=8)
+            table.add_column("作者", style="yellow", min_width=15)
+            table.add_column("评分", style="blue", justify="center", width=6)
+            table.add_column("下载量", style="dim", justify="right", width=10)
+
             for i, plugin in enumerate(plugins['plugins'], 1):
                 table.add_row(
                     f"{i}",
@@ -199,28 +268,71 @@ class PluginInterface:
                     f"{plugin.get('rating', 0.0):.1f}",
                     f"{plugin.get('downloads', 0):,}"
                 )
-            
-            self.console.print(table)
-            self.console.print(f"\n第 {plugins['page']}/{(plugins['total'] + plugins['per_page'] - 1) // plugins['per_page']} 页")
+
+            # 结果面板
+            result_title = Text(f"找到 {plugins['total']} 个插件", style="bold cyan")
+            result_panel = Panel(
+                table,
+                title=result_title,
+                border_style="blue",
+                box=box.ROUNDED,
+                padding=(0, 1)
+            )
+
+            self.console.print(result_panel)
+            self.console.print()
+
+            # 分页信息
+            page_info = f"第 {plugins['page']}/{(plugins['total'] + plugins['per_page'] - 1) // plugins['per_page']} 页"
+            self.console.print(page_info, style="dim", justify="center")
         else:
-            self.console.print("[yellow]没有找到匹配的插件[/yellow]")
-    
+            no_result_panel = Panel(
+                Text("没有找到匹配的插件", style="yellow", justify="center"),
+                border_style="yellow",
+                box=box.ROUNDED
+            )
+            self.console.print(no_result_panel)
+
     def _install_online_plugin(self):
         """安装在线插件"""
         self.console.clear()
-        self.console.print("=" * 80)
-        self.console.print("📦 安装在线插件".center(80), style="bold green")
-        self.console.print("=" * 80)
-        
-        # 支持两种安装方式：插件ID或GitHub仓库URL
-        self.console.print("安装方式:")
-        self.console.print("1. 输入插件ID从官方仓库安装")
-        self.console.print("2. 输入GitHub仓库URL直接安装")
-        self.console.print("0. 返回")
+
+        title_panel = Panel(
+            Text("安装在线插件", style="bold green"),
+            box=box.SIMPLE,
+            border_style="green",
+            padding=(0, 0)
+        )
+        self.console.print(title_panel)
         self.console.print()
-        
-        install_choice = self.console.input("请选择安装方式: ")
-        
+
+        # 安装选项
+        options_table = Table(
+            show_header=False,
+            box=box.SIMPLE,
+            show_edge=False,
+            padding=(0, 1)
+        )
+        options_table.add_column("选项", style="bold cyan", width=3)
+        options_table.add_column("安装方式", style="white")
+
+        options_table.add_row("1", "从官方仓库安装 (输入插件ID)")
+        options_table.add_row("2", "从GitHub安装 (输入仓库URL)")
+        options_table.add_row("0", "返回")
+
+        options_panel = Panel(
+            options_table,
+            title="选择安装方式",
+            border_style="cyan",
+            box=box.ROUNDED,
+            padding=(0, 1)
+        )
+
+        self.console.print(options_panel)
+        self.console.print()
+
+        install_choice = self.console.input("请选择: ")
+
         if install_choice == '0':
             return
         elif install_choice == '1':
@@ -229,65 +341,90 @@ class PluginInterface:
             if plugin_id:
                 success = self.plugin_repo.install_plugin(plugin_id, self.plugin_manager)
                 if success:
-                    self.console.print("[green]插件安装成功![/green]")
+                    self._show_message("插件安装成功", "green")
                     # 重新加载插件
                     self._reload_plugins()
                 else:
-                    self.console.print("[red]插件安装失败[/red]")
+                    self._show_message("插件安装失败", "red")
         elif install_choice == '2':
             # 从GitHub直接安装
             github_url = self.console.input("请输入GitHub仓库URL: ")
             if github_url:
                 success = self.plugin_manager.install_plugin_from_github(github_url)
                 if success:
-                    self.console.print("[green]插件安装成功![/green]")
+                    self._show_message("插件安装成功", "green")
                     # 重新加载插件
                     self._reload_plugins()
                 else:
-                    self.console.print("[red]插件安装失败[/red]")
+                    self._show_message("插件安装失败", "red")
         else:
-            self.console.print("[red]无效的选择[/red]")
-    
+            self._show_message("无效的选择", "red")
+
     def _update_plugins(self):
         """更新插件"""
         self.console.clear()
-        self.console.print("=" * 80)
-        self.console.print("🔄 更新插件".center(80), style="bold green")
-        self.console.print("=" * 80)
-        
+
+        title_panel = Panel(
+            Text("更新插件", style="bold green"),
+            box=box.SIMPLE,
+            border_style="green",
+            padding=(0, 0)
+        )
+        self.console.print(title_panel)
+        self.console.print()
+
         # 获取已安装的插件
         installed_plugins = self.plugin_manager.list_plugins()
-        
+
         if not installed_plugins:
-            self.console.print("[yellow]暂无已安装的插件[/yellow]")
+            self._show_message("暂无已安装的插件", "yellow")
             return
-        
-        # 创建表格显示插件信息
-        table = Table(show_header=True, header_style="bold magenta", box=box.SIMPLE)
-        table.add_column("序号", style="cyan bold", justify="center")
-        table.add_column("插件", style="white")
-        table.add_column("当前版本", style="green")
-        table.add_column("库上版本", style="blue")
-        
+
+        # 创建更新表格
+        table = Table(
+            show_header=True,
+            header_style="bold magenta",
+            box=box.SIMPLE,
+            border_style="blue",
+            show_lines=True
+        )
+        table.add_column("序号", style="cyan", justify="center", width=4)
+        table.add_column("插件", style="bold white", min_width=20)
+        table.add_column("当前版本", style="green", justify="center", width=10)
+        table.add_column("库上版本", style="blue", justify="center", width=10)
+        table.add_column("状态", style="yellow", justify="center", width=6)
+
         # 模拟获取库上版本（实际实现中需要从GitHub API或插件仓库获取）
         for i, plugin_info in enumerate(installed_plugins, 1):
             # 这里暂时使用当前版本作为库上版本，实际实现中需要替换为真实的库上版本获取逻辑
-            repo_version = plugin_info['version']  # 模拟数据，实际需要从API获取
+            repo_version = plugin_info['version']  # 模拟数据
+            status = "最新" if plugin_info['version'] == repo_version else "可更新"
             table.add_row(
                 f"{i}",
                 plugin_info['name'],
                 plugin_info['version'],
-                repo_version
+                repo_version,
+                status
             )
-        
-        self.console.print(table)
+
+        table_panel = Panel(
+            table,
+            title=f"已安装插件 ({len(installed_plugins)})",
+            border_style="blue",
+            box=box.ROUNDED,
+            padding=(0, 1)
+        )
+
+        self.console.print(table_panel)
         self.console.print()
+
+        # 操作选项
         self.console.print("0. 返回")
         self.console.print("a. 更新所有插件")
         self.console.print()
-        
+
         choice = self.console.input("请选择要更新的插件编号: ")
-        
+
         if choice == '0':
             return
         elif choice.lower() == 'a':
@@ -296,11 +433,11 @@ class PluginInterface:
             updated_count = 0
             for plugin_info in installed_plugins:
                 # 这里可以根据插件的repository信息来更新
-                self.console.print(f"\n更新 {plugin_info['name']}...")
+                self.console.print(f"更新 {plugin_info['name']}...")
                 # 实际更新逻辑需要根据插件的具体情况实现
-                self.console.print(f"✅ {plugin_info['name']} 已是最新版本")
+                self.console.print(f"  {plugin_info['name']} 已是最新版本")
                 updated_count += 1
-            self.console.print(f"\n[green]更新完成! 共更新了 {updated_count} 个插件[/green]")
+            self._show_message(f"更新完成! 共检查了 {updated_count} 个插件", "green")
         else:
             # 更新单个插件
             try:
@@ -309,20 +446,25 @@ class PluginInterface:
                     plugin_info = installed_plugins[idx]
                     self.console.print(f"\n正在更新 {plugin_info['name']}...")
                     # 实际更新逻辑
-                    self.console.print(f"✅ {plugin_info['name']} 已是最新版本")
+                    self.console.print(f"  {plugin_info['name']} 已是最新版本")
                 else:
-                    self.console.print("[red]无效的插件编号[/red]")
+                    self._show_message("无效的插件编号", "red")
             except ValueError:
-                self.console.print("[red]无效的输入[/red]")
-    
+                self._show_message("无效的输入", "red")
+
     def _reload_plugins(self):
         """重新加载插件"""
-        self.console.print("\n" + "-" * 80)
-        self.console.print("🔄 重新加载插件".center(80), style="bold green")
-        self.console.print("-" * 80)
-        
-        self.console.print(f"正在重新加载插件...")
-        
+        self.console.print()
+        title_panel = Panel(
+            Text("重新加载插件", style="bold green"),
+            box=box.SIMPLE,
+            border_style="green",
+            padding=(0, 0)
+        )
+        self.console.print(title_panel)
+
+        self.console.print("正在重新加载插件...")
+
         # 清理现有插件
         self.plugin_manager.cleanup_all()
         
@@ -368,13 +510,13 @@ class PluginInterface:
         
         # 直接在PluginInterface中重建插件菜单
         self._rebuild_plugin_menu()
-        
-        self.console.print(f"✅ 成功重新加载 {len(self.plugin_manager.plugins)} 个插件", style="bold green")
-    
+
+        self._show_message(f"成功重新加载 {len(self.plugin_manager.plugins)} 个插件", "green")
+
     def _rebuild_plugin_menu(self):
         """重建插件菜单，与AppManager保持一致的逻辑"""
         from core.menu_system import MenuNode, MenuType, MenuItem, ActionItem
-        
+
         # 获取插件菜单
         plugins_menu = self.menu_system.get_item_by_id("plugins_menu")
         if not isinstance(plugins_menu, MenuNode):
@@ -384,7 +526,6 @@ class PluginInterface:
                 name="插件命令",
                 description="所有已安装插件的命令",
                 menu_type=MenuType.SUB,
-                icon="🔌"
             )
             self.menu_system.register_item(plugins_menu)
         
@@ -452,183 +593,276 @@ class PluginInterface:
                 main_menu.items.insert(1, "plugins_menu")
             else:
                 main_menu.items.append("plugins_menu")
-    
+
     def _refresh_plugins(self):
         """刷新插件列表"""
-        self.console.print("\n" + "-" * 80)
-        self.console.print("🔍 刷新插件列表".center(80), style="bold green")
-        self.console.print("-" * 80)
-        
+        self.console.print()
+        title_panel = Panel(
+            Text("刷新插件列表", style="bold green"),
+            box=box.SIMPLE,
+            border_style="green",
+            padding=(0, 0)
+        )
+        self.console.print(title_panel)
+
         discovered = self.plugin_manager.discover_plugins()
         loaded = list(self.plugin_manager.plugins.keys())
-        
-        self.console.print(f"📁 发现插件: {len(discovered)}")
-        self.console.print(f"🔌 已加载插件: {len(loaded)}")
-        
+
+        info_table = Table(
+            show_header=False,
+            box=box.SIMPLE,
+            show_edge=False
+        )
+        info_table.add_column("指标", style="cyan bold", width=15)
+        info_table.add_column("数量", style="white", justify="right")
+
+        info_table.add_row("发现插件", f"{len(discovered)}")
+        info_table.add_row("已加载插件", f"{len(loaded)}")
+
+        self.console.print(info_table)
+
         if discovered:
-            self.console.print(f"\n📋 发现的插件:")
+            self.console.print(f"\n发现的插件:")
             for plugin in discovered:
-                status = "✅ 已加载" if plugin in loaded else "❌ 未加载"
-                self.console.print(f"  {plugin}: {status}")
-    
+                status = "已加载" if plugin in loaded else "未加载"
+                status_style = "green" if plugin in loaded else "red"
+                self.console.print(f"  {plugin}: [{status_style}]{status}[/{status_style}]")
+
     def _show_plugin_directory(self):
         """显示插件目录"""
-        self.console.print("\n" + "-" * 80)
-        self.console.print("📁 插件目录".center(80), style="bold green")
-        self.console.print("-" * 80)
-        
+        self.console.print()
+        title_panel = Panel(
+            Text("插件目录", style="bold green"),
+            box=box.SIMPLE,
+            border_style="green",
+            padding=(0, 0)
+        )
+        self.console.print(title_panel)
+
         plugin_dir = self.config_manager.get_config("plugin_directory", "plugins")
         abs_plugin_dir = os.path.abspath(plugin_dir)
-        
+
         self.console.print(f"插件目录路径: {abs_plugin_dir}")
-        
+
         if os.path.exists(abs_plugin_dir):
             files = os.listdir(abs_plugin_dir)
             if files:
                 self.console.print(f"\n目录内容:")
+
+                dir_table = Table(
+                    show_header=False,
+                    box=box.SIMPLE,
+                    show_edge=False,
+                    padding=(0, 2)
+                )
+                dir_table.add_column("类型", style="cyan", width=3)
+                dir_table.add_column("名称", style="white")
+
                 for file in files:
                     file_path = os.path.join(abs_plugin_dir, file)
                     if os.path.isfile(file_path) and file.endswith('.py') and file != '__init__.py':
-                        self.console.print(f"  📄 {file}")
+                        dir_table.add_row("F", file)
                     elif os.path.isdir(file_path):
-                        self.console.print(f"  📁 {file}/")
+                        dir_table.add_row("D", f"{file}/")
                     else:
-                        self.console.print(f"  📄 {file}")
+                        dir_table.add_row("F", file)
+
+                self.console.print(dir_table)
             else:
-                self.console.print(f"\n[yellow]目录为空[/yellow]")
+                self._show_message("目录为空", "yellow")
         else:
-            self.console.print(f"\n[red]目录不存在[/red]")
-    
+            self._show_message("目录不存在", "red")
+
     def _toggle_plugin(self):
         """启用/禁用插件"""
         plugins = self.plugin_manager.list_plugins()
-        
+
         if not plugins:
-            self.console.print(f"\n[yellow]暂无插件[/yellow]")
+            self._show_message("暂无插件", "yellow")
             return
-        
-        self.console.print("\n" + "-" * 80)
-        self.console.print("⚙️  启用/禁用插件".center(80), style="bold green")
-        self.console.print("-" * 80)
-        
+
+        self.console.print()
+        title_panel = Panel(
+            Text("启用/禁用插件", style="bold green"),
+            box=box.SIMPLE,
+            border_style="green",
+            padding=(0, 0)
+        )
+        self.console.print(title_panel)
+
         # 显示插件列表供选择
+        select_table = Table(
+            show_header=True,
+            header_style="bold magenta",
+            box=box.SIMPLE,
+            border_style="blue",
+            show_lines=True
+        )
+        select_table.add_column("编号", style="cyan", justify="center", width=4)
+        select_table.add_column("插件名称", style="bold white", min_width=20)
+        select_table.add_column("状态", style="yellow", justify="center", width=8)
+
         for i, plugin_info in enumerate(plugins, 1):
-            status = "✅ 已启用" if plugin_info["enabled"] else "❌ 已禁用"
-            self.console.print(f"{i}. {plugin_info['name']} - {status}")
-        
+            status = "已启用" if plugin_info["enabled"] else "已禁用"
+            select_table.add_row(
+                f"{i}",
+                plugin_info['name'],
+                status
+            )
+
+        self.console.print(select_table)
+        self.console.print()
+
         self.console.print("0. 返回")
         self.console.print()
-        
-        self.console.print("请输入插件编号: ", style="bold green", end="")
-        choice = input().strip()
-        
+
+        choice = input("请输入插件编号: ").strip()
+
         if choice == '0':
             return
-        
+
         try:
             idx = int(choice) - 1
             if 0 <= idx < len(plugins):
                 plugin_info = plugins[idx]
                 plugin_name = plugin_info["name"]
-                
+
                 if plugin_info["enabled"]:
                     # 禁用插件
                     success = self.plugin_manager.disable_plugin(plugin_name)
                     if success:
-                        self.console.print(f"\n[green]✅ 插件 {plugin_info['name']} 已成功禁用[/green]")
+                        self._show_message(f"插件 {plugin_info['name']} 已成功禁用", "green")
                         # 重新加载插件并重建菜单
                         self._reload_plugins()
                     else:
-                        self.console.print(f"\n[red]❌ 禁用插件 {plugin_info['name']} 失败[/red]")
+                        self._show_message(f"禁用插件 {plugin_info['name']} 失败", "red")
                 else:
                     # 启用插件
                     success = self.plugin_manager.enable_plugin(plugin_name)
                     if success:
-                        self.console.print(f"\n[green]✅ 插件 {plugin_info['name']} 已成功启用[/green]")
+                        self._show_message(f"插件 {plugin_info['name']} 已成功启用", "green")
                         # 重新加载插件并重建菜单
                         self._reload_plugins()
                     else:
-                        self.console.print(f"\n[red]❌ 启用插件 {plugin_info['name']} 失败[/red]")
+                        self._show_message(f"启用插件 {plugin_info['name']} 失败", "red")
             else:
-                self.console.print(f"\n[red]❌ 无效的插件编号[/red]")
+                self._show_message("无效的插件编号", "red")
         except ValueError:
-            self.console.print(f"\n[red]❌ 无效的输入[/red]")
-    
+            self._show_message("无效的输入", "red")
+
     def _create_new_plugin(self):
         """创建新插件"""
         self.console.clear()
-        self.console.print("=" * 80)
-        self.console.print("✨ 创建新插件".center(80), style="bold cyan")
-        self.console.print("=" * 80)
+
+        title_panel = Panel(
+            Text("创建新插件", style="bold cyan"),
+            box=box.SIMPLE,
+            border_style="cyan",
+            padding=(0, 0)
+        )
+        self.console.print(title_panel)
         self.console.print()
         
         # 导入PythonOperations
         from core.operations import PythonOperations
-        
+
         # 获取用户输入
-        plugin_name = self.console.input("请输入插件名称 (英文，用于目录和类名): ").strip()
+        plugin_name = self.console.input("请输入插件名称 (英文): ").strip()
         if not plugin_name:
-            self.console.print("\n[red]❌ 插件名称不能为空[/red]")
+            self._show_message("插件名称不能为空", "red")
             return
-        
-        plugin_display_name = self.console.input("请输入插件显示名称 (中文，用于界面显示，直接回车使用插件名称): ").strip()
-        
+
+        plugin_display_name = self.console.input("请输入插件显示名称 (直接回车使用插件名称): ").strip()
+
         # 创建插件
         self.console.print(f"\n正在创建插件 '{plugin_name}'...")
         result = PythonOperations.create_plugin(plugin_name, plugin_display_name)
-        
-        # 显示结果
-        self.console.print(f"\n{result}")
-        
-        # 刷新插件列表
+
+        if "成功" in result:
+            self._show_message(result, "green")
+        else:
+            self._show_message(result, "yellow")
+
         self.console.print("\n正在刷新插件列表...")
         self._reload_plugins()
-    
+
     def _uninstall_plugin(self):
         """卸载插件"""
         plugins = self.plugin_manager.list_plugins()
-        
+
         if not plugins:
-            self.console.print(f"\n[yellow]暂无插件[/yellow]")
+            self._show_message("暂无插件", "yellow")
             return
-        
-        self.console.print("\n" + "-" * 80)
-        self.console.print("🗑️  卸载插件".center(80), style="bold green")
-        self.console.print("-" * 80)
-        
+
+        self.console.print()
+        title_panel = Panel(
+            Text("卸载插件", style="bold green"),
+            box=box.SIMPLE,
+            border_style="green",
+            padding=(0, 0)
+        )
+        self.console.print(title_panel)
+
         # 显示插件列表供选择
+        select_table = Table(
+            show_header=True,
+            header_style="bold magenta",
+            box=box.SIMPLE,
+            border_style="blue",
+            show_lines=True
+        )
+        select_table.add_column("编号", style="cyan", justify="center", width=4)
+        select_table.add_column("插件名称", style="bold white", min_width=20)
+        select_table.add_column("版本", style="green", justify="center", width=8)
+
         for i, plugin_info in enumerate(plugins, 1):
-            self.console.print(f"{i}. {plugin_info['name']} v{plugin_info['version']}")
-        
+            select_table.add_row(
+                f"{i}",
+                plugin_info['name'],
+                f"v{plugin_info['version']}"
+            )
+
+        self.console.print(select_table)
+        self.console.print()
+
         self.console.print("0. 返回")
         self.console.print()
-        
-        self.console.print("请输入插件编号: ", style="bold green", end="")
-        choice = input().strip()
-        
+
+        choice = input("请输入插件编号: ").strip()
+
         if choice == '0':
             return
-        
+
         try:
             idx = int(choice) - 1
             if 0 <= idx < len(plugins):
                 plugin_info = plugins[idx]
                 plugin_name = plugin_info["name"]
-                
+
                 # 确认卸载
                 from rich.prompt import Confirm
                 confirm = Confirm.ask(f"\n是否确定要卸载插件 {plugin_info['name']}?")
                 if confirm:
                     success = self.plugin_manager.uninstall_plugin(plugin_name)
                     if success:
-                        self.console.print(f"\n[green]✅ 插件 {plugin_info['name']} 已成功卸载[/green]")
+                        self._show_message(f"插件 {plugin_info['name']} 已成功卸载", "green")
                         # 重新加载插件并重建菜单
                         self._reload_plugins()
                     else:
-                        self.console.print(f"\n[red]❌ 卸载插件 {plugin_info['name']} 失败[/red]")
+                        self._show_message(f"卸载插件 {plugin_info['name']} 失败", "red")
                 else:
-                    self.console.print(f"\n[yellow]已取消卸载插件 {plugin_info['name']}[/yellow]")
+                    self._show_message(f"已取消卸载插件 {plugin_info['name']}", "yellow")
             else:
-                self.console.print(f"\n[red]❌ 无效的插件编号[/red]")
+                self._show_message("无效的插件编号", "red")
         except ValueError:
-            self.console.print(f"\n[red]❌ 无效的输入[/red]")
+            self._show_message("无效的输入", "red")
+
+    def _show_message(self, message: str, color: str = "white"):
+        """显示消息面板"""
+        message_panel = Panel(
+            Text(message, justify="center"),
+            border_style=color,
+            box=box.ROUNDED,
+            padding=(0, 1)
+        )
+        self.console.print(message_panel)
