@@ -159,7 +159,7 @@ class SearchInterface:
         # 3. 搜索输入面板
         input_panel = Panel(
             Text("请输入搜索关键词", style="bold white", justify="center"),
-            subtitle="输入关键词开始搜索，直接回车返回",
+            subtitle="输入关键词开始搜索 | Enter: 返回 ",
             subtitle_align="left",
             border_style="green",
             box=box.ROUNDED,
@@ -269,7 +269,7 @@ class SearchInterface:
         subtitle_parts = []
         if len(results) > 20:
             subtitle_parts.append(f"还有 {len(results) - 20} 个结果未显示")
-        subtitle_parts.append("输入编号或ID执行，b: 返回搜索，h: 查看历史，直接回车返回")
+        subtitle_parts.append("编号/ID: 执行 | b: 返回搜索 | h: 查看历史 | Enter: 直接返回")
 
         # 5. 创建结果面板
         results_panel = Panel(
@@ -363,7 +363,7 @@ class SearchInterface:
         tips_table.add_column("", style="yellow", width=self.panel_width - 2)
         tips_table.add_row(f"未找到包含 '{keyword}' 的菜单项")
         tips_table.add_row("")
-        tips_table.add_row("💡 搜索提示:")
+        tips_table.add_row("搜索提示:")
         tips_table.add_row("  • 尝试不同的关键词")
         tips_table.add_row("  • 检查拼写是否正确")
         tips_table.add_row("  • 搜索范围包括名称和描述")
@@ -372,7 +372,7 @@ class SearchInterface:
         tips_panel = Panel(
             tips_table,
             title="搜索结果",
-            subtitle="b: 返回搜索 | h: 查看搜索历史 | 直接回车返回",
+            subtitle="b: 返回搜索 | h: 查看搜索历史 | Enter: 直接返回",
             subtitle_align="left",
             border_style="yellow",
             box=box.ROUNDED,
@@ -625,7 +625,7 @@ class SearchInterface:
         # 4. 填充历史记录（逆序显示，最新的在最上面）
         for i, keyword in enumerate(reversed(self.search_history), 1):
             # 操作按钮文本
-            actions = Text("🔍 搜索", style="green")
+            actions = Text("搜索", style="green")
 
             history_table.add_row(
                 f"{i}",
@@ -637,7 +637,7 @@ class SearchInterface:
         history_panel = Panel(
             history_table,
             title=f"共 {len(self.search_history)} 条搜索历史",
-            subtitle="输入编号执行搜索 | c: 清除历史 | 直接回车返回",
+            subtitle="编号: 执行搜索 | c: 清除历史 | Enter: 直接返回",
             subtitle_align="left",
             border_style="blue",
             box=box.ROUNDED,
