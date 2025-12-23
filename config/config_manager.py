@@ -277,11 +277,11 @@ class ConfigManager:
         """显示配置摘要"""
         info = []
         info.append("=" * 70)
-        info.append("⚙️  配置摘要".center(70))
+        info.append("配置摘要".center(70))
         info.append("=" * 70)
         
         # 显示配置
-        info.append(f"\n📋 主配置:")
+        info.append(f"\n主配置:")
         info.append(f"  主题: {self.config.theme}")
         info.append(f"  语言: {self.config.language}")
         info.append(f"  命令超时: {self.config.command_timeout}秒")
@@ -291,13 +291,13 @@ class ConfigManager:
         info.append(f"  自动清屏: {'是' if self.config.auto_clear_screen else '否'}")
         
         # 显示用户偏好
-        info.append(f"\n👤 用户偏好:")
+        info.append(f"\n用户偏好:")
         info.append(f"  收藏项目数: {len(self.preferences.favorite_items)}")
         info.append(f"  最近使用数: {len(self.preferences.recently_used)}")
         info.append(f"  自定义快捷键: {len(self.preferences.custom_shortcuts)}个")
         
         # 显示文件信息
-        info.append(f"\n📁 文件信息:")
+        info.append(f"\n文件信息:")
         info.append(f"  配置目录: {self.config_dir}")
         info.append(f"  配置文件: {self.config_file}")
         info.append(f"  偏好文件: {self.prefs_file}")
