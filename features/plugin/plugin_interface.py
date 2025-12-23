@@ -262,10 +262,26 @@ class PluginInterface:
             self.console.print("[yellow]暂无已安装的插件[/yellow]")
             return
         
-        self.console.print("已安装的插件:")
-        for i, plugin_info in enumerate(installed_plugins, 1):
-            self.console.print(f"{i}. {plugin_info['name']} v{plugin_info['version']}")
+        # 创建表格显示插件信息
+        table = Table(show_header=True, header_style="bold magenta", box=box.SIMPLE)
+        table.add_column("序号", style="cyan bold", justify="center")
+        table.add_column("插件", style="white")
+        table.add_column("当前版本", style="green")
+        table.add_column("库上版本", style="blue")
         
+        # 模拟获取库上版本（实际实现中需要从GitHub API或插件仓库获取）
+        for i, plugin_info in enumerate(installed_plugins, 1):
+            # 这里暂时使用当前版本作为库上版本，实际实现中需要替换为真实的库上版本获取逻辑
+            repo_version = plugin_info['version']  # 模拟数据，实际需要从API获取
+            table.add_row(
+                f"{i}",
+                plugin_info['name'],
+                plugin_info['version'],
+                repo_version
+            )
+        
+        self.console.print(table)
+        self.console.print()
         self.console.print("0. 返回")
         self.console.print("a. 更新所有插件")
         self.console.print()

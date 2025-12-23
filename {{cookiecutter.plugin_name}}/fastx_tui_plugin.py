@@ -2,6 +2,8 @@
 """
 FastX-Tui {{ cookiecutter.plugin_display_name }} Plugin
 """
+import os
+import toml
 from core.plugin_manager import Plugin, PluginInfo
 from core.menu_system import MenuSystem, ActionItem, CommandType
 
@@ -11,11 +13,28 @@ class {{ cookiecutter.plugin_name }}Plugin(Plugin):
     def __init__(self):
         super().__init__()
     
+    @classmethod
+    def get_version(cls) -> str:
+        """从pyproject.toml获取当前版本号"""
+        try:
+            # 获取当前文件所在目录
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # 构建pyproject.toml的路径
+            pyproject_path = os.path.join(current_dir, "pyproject.toml")
+            # 读取文件
+            with open(pyproject_path, "r", encoding="utf-8") as f:
+                data = toml.load(f)
+            # 返回版本号
+            return data["project"]["version"]
+        except Exception as e:
+            # 如果读取失败，返回默认版本
+            return "1.0.0"
+    
     def get_info(self) -> PluginInfo:
         """获取插件信息"""
         return PluginInfo(
             name="{{ cookiecutter.plugin_display_name }}",
-            version="{{ cookiecutter.plugin_version }}",
+            version=self.get_version(),
             author="{{ cookiecutter.plugin_author }}",
             description="{{ cookiecutter.plugin_description }}",
             category="{{ cookiecutter.plugin_category }}",
@@ -23,7 +42,11 @@ class {{ cookiecutter.plugin_name }}Plugin(Plugin):
             compatibility={"fastx-tui": ">=1.0.0"},
             dependencies=[],
             repository="{{ cookiecutter.plugin_repository }}",
-            license="{{ cookiecutter.license }}"
+            homepage="{{ cookiecutter.plugin_repository }}",
+            license="{{ cookiecutter.license }}",
+            last_updated="{{ cookiecutter.year }}-12-23",
+            rating=0.0,
+            downloads=0
         )
     
     def register(self, menu_system: MenuSystem):
