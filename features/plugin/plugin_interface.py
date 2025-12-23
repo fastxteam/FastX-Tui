@@ -10,9 +10,10 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
+from rich.tree import Tree
 
 from core.plugin_manager import PluginManager, PluginRepository
-from core.menu_system import MenuSystem
+from core.menu_system import MenuSystem, MenuNode
 from config.config_manager import ConfigManager
 
 
@@ -63,24 +64,27 @@ class PluginInterface:
         plugin_dir = self.config_manager.get_config("plugin_directory", "plugins")
         plugin_dir_path = os.path.abspath(plugin_dir)
 
-        # 创建插件信息表格 - 使用136宽度
+        # 创建插件信息表格 - 调整Table设置减少行间距
         plugin_table = Table(
             show_header=True,
+            show_footer=False,
             header_style="bold magenta",
             box=box.SIMPLE,
             border_style="blue",
-            show_lines=True,
+            show_lines=False,  # 移除行间线条
+            collapse_padding=True,  # 减少内边距
+            pad_edge=False,  # 移除边缘填充
+            padding=(0, 0),  # 最小内边距
             width=self.panel_width - 2
         )
 
-        # 计算列宽（总计134字符，放大到136宽度）
-        # 编号：8字符，状态：8字符，名称：30字符，版本：12字符，作者：25字符，描述：51字符
+        # 计算列宽（总计134字符）
         plugin_table.add_column("编号", style="cyan", justify="center", width=8)
         plugin_table.add_column("状态", justify="center", width=8)
         plugin_table.add_column("名称", style="bold white", width=30)
         plugin_table.add_column("版本", style="green", justify="center", width=12)
         plugin_table.add_column("作者", style="yellow", width=25)
-        plugin_table.add_column("描述", style="dim", width=51)
+        plugin_table.add_column("描述", style="dim", no_wrap=True, width=51)
 
         plugin_count = 0
         if plugins:
@@ -100,8 +104,8 @@ class PluginInterface:
                     author = author[:22] + "..."
 
                 description = plugin_info["description"]
-                if len(description) > 50:
-                    description = description[:47] + "..."
+                if len(description) > 30:
+                    description = description[:27] + "..."
 
                 plugin_table.add_row(
                     f"{i}",
@@ -118,6 +122,7 @@ class PluginInterface:
 
         # 插件列表面板
         plugin_title = Text(f"已发现插件 ({plugin_count})", style="bold blue")
+
         plugin_panel = Panel(
             plugin_table,
             title=plugin_title,
@@ -128,18 +133,20 @@ class PluginInterface:
             padding=(0, 1),
             width=self.panel_width
         )
-
         self.console.print(plugin_panel)
         self.console.print()
 
-        # 创建操作命令表格
+        # 创建操作命令表格 - 调整Table设置减少行间距
         command_table = Table(
             show_header=True,
             header_style="bold magenta",
             box=box.SIMPLE,
-            show_edge=True,
-            width=self.panel_width - 2,
-            padding=(0, 1)
+            border_style="green",
+            show_lines=False,
+            collapse_padding=True,
+            pad_edge=False,
+            padding=(0, 0),
+            width=self.panel_width - 2
         )
         command_table.add_column("命令", style="bold cyan", width=8)
         command_table.add_column("具体操作", style="white", width=128)
@@ -263,16 +270,19 @@ class PluginInterface:
         plugins = self.plugin_repo.get_plugins(search=search_query)
 
         if plugins['plugins']:
-            # 创建插件表格
+            # 创建插件表格 - 调整Table设置
             table = Table(
                 show_header=True,
                 header_style="bold magenta",
                 box=box.SIMPLE,
                 border_style="blue",
-                show_lines=True,
+                show_lines=False,
+                collapse_padding=True,
+                pad_edge=False,
+                padding=(0, 0),
                 width=self.panel_width - 2
             )
-            # 重新计算列宽（134字符）
+            # 重新计算列宽
             table.add_column("编号", style="cyan", justify="center", width=8)
             table.add_column("名称", style="bold white", width=40)
             table.add_column("版本", style="green", justify="center", width=12)
@@ -281,7 +291,7 @@ class PluginInterface:
             table.add_column("下载量", style="dim", justify="right", width=12)
 
             for i, plugin in enumerate(plugins['plugins'], 1):
-                # 处理过长的文本 - 截断
+                # 处理过长的文本
                 name = plugin.get("name", "未知")
                 if len(name) > 40:
                     name = name[:37] + "..."
@@ -303,6 +313,8 @@ class PluginInterface:
             result_panel = Panel(
                 table,
                 title=f"找到 {plugins['total']} 个插件",
+                subtitle=f"第 {plugins['page']}/{(plugins['total'] + plugins['per_page'] - 1) // plugins['per_page']} 页",
+                subtitle_align="left",
                 border_style="blue",
                 box=box.ROUNDED,
                 padding=(0, 1),
@@ -310,29 +322,6 @@ class PluginInterface:
             )
 
             self.console.print(result_panel)
-            self.console.print()
-
-            # 分页信息
-            page_table = Table(
-                show_header=False,
-                box=box.SIMPLE,
-                show_edge=False,
-                width=self.panel_width - 2,
-                padding=(0, 1)
-            )
-            page_table.add_column("", style="dim", width=self.panel_width - 2)
-            page_text = f"第 {plugins['page']}/{(plugins['total'] + plugins['per_page'] - 1) // plugins['per_page']} 页"
-            page_table.add_row(page_text)
-
-            page_panel = Panel(
-                page_table,
-                border_style="cyan",
-                box=box.ROUNDED,
-                padding=(0, 0),
-                width=self.panel_width
-            )
-
-            self.console.print(page_panel)
         else:
             no_result_panel = Panel(
                 Text("没有找到匹配的插件", style="yellow", justify="center"),
@@ -356,13 +345,16 @@ class PluginInterface:
         self.console.print(title_panel)
         self.console.print()
 
-        # 安装选项
+        # 安装选项表格
         options_table = Table(
             show_header=False,
             box=box.SIMPLE,
-            show_edge=True,
-            width=self.panel_width - 2,
-            padding=(0, 1)
+            border_style="blue",
+            show_lines=False,
+            collapse_padding=True,
+            pad_edge=False,
+            padding=(0, 0),
+            width=self.panel_width - 2
         )
         options_table.add_column("编号", style="bold cyan", width=8)
         options_table.add_column("安装方式", style="white", width=128)
@@ -442,10 +434,12 @@ class PluginInterface:
             header_style="bold magenta",
             box=box.SIMPLE,
             border_style="blue",
-            show_lines=True,
+            show_lines=False,
+            collapse_padding=True,
+            pad_edge=False,
+            padding=(0, 0),
             width=self.panel_width - 2
         )
-        # 重新计算列宽
         table.add_column("序号", style="cyan", justify="center", width=8)
         table.add_column("插件", style="bold white", width=55)
         table.add_column("当前版本", style="green", justify="center", width=15)
@@ -457,7 +451,7 @@ class PluginInterface:
             repo_version = plugin_info['version']  # 模拟数据
             status = "最新" if plugin_info['version'] == repo_version else "可更新"
 
-            # 处理插件名称 - 截断
+            # 处理插件名称
             name = plugin_info['name']
             if len(name) > 55:
                 name = name[:52] + "..."
@@ -516,6 +510,8 @@ class PluginInterface:
         self.console.print()
         title_panel = Panel(
             Text("重新加载插件", style="bold green"),
+            subtitle="正在重新加载插件...",
+            subtitle_align="center",
             box=box.SIMPLE,
             border_style="green",
             padding=(0, 0),
@@ -523,31 +519,8 @@ class PluginInterface:
         )
         self.console.print(title_panel)
 
-        info_table = Table(
-            show_header=False,
-            box=box.SIMPLE,
-            show_edge=True,
-            width=self.panel_width - 2,
-            padding=(1, 2)
-        )
-        info_table.add_column("", style="white", width=self.panel_width - 6)
-        info_table.add_row("正在重新加载插件...")
-
-        info_panel = Panel(
-            info_table,
-            border_style="blue",
-            box=box.ROUNDED,
-            padding=(0, 0),
-            width=self.panel_width
-        )
-
-        self.console.print(info_panel)
-
-        # 清理现有插件
+        # # 清空所有插件相关的菜单和命令 | 清理现有插件
         self.plugin_manager.cleanup_all()
-
-        # 清空所有插件相关的菜单和命令
-        from core.menu_system import MenuNode
 
         # 先记录要删除的插件菜单项
         plugin_items_to_remove = []
@@ -589,6 +562,11 @@ class PluginInterface:
         # 直接在PluginInterface中重建插件菜单
         self._rebuild_plugin_menu()
 
+        # 等待所有日志输出完成
+        import time
+        time.sleep(0.1)  # 短暂等待确保日志输出完成
+
+        # 显示结果
         self._show_message(f"成功重新加载 {len(self.plugin_manager.plugins)} 个插件", "green")
 
     def _rebuild_plugin_menu(self):
@@ -687,35 +665,44 @@ class PluginInterface:
         discovered = self.plugin_manager.discover_plugins()
         loaded = list(self.plugin_manager.plugins.keys())
 
-        info_table = Table(
-            show_header=False,
-            box=box.SIMPLE,
-            show_edge=True,
-            width=self.panel_width - 2,
-            padding=(1, 2)
-        )
-        info_table.add_column("指标", style="cyan bold", width=30)
-        info_table.add_column("数量", style="white", justify="right", width=104)
-
-        info_table.add_row("发现插件", f"{len(discovered)}")
-        info_table.add_row("已加载插件", f"{len(loaded)}")
-
-        info_panel = Panel(
-            info_table,
-            border_style="blue",
-            box=box.ROUNDED,
-            padding=(0, 0),
-            width=self.panel_width
-        )
-
-        self.console.print(info_panel)
-
         if discovered:
-            self.console.print(f"\n[bold cyan]发现的插件:[/bold cyan]")
+            self.console.print()
+
+            # 创建插件详情表格
+            plugins_table = Table(
+                show_header=True,
+                header_style="bold magenta",
+                box=box.SIMPLE,
+                border_style="cyan",
+                show_lines=False,
+                collapse_padding=True,
+                pad_edge=False,
+                padding=(0, 0),
+                width=self.panel_width - 2
+            )
+            plugins_table.add_column("插件名称", style="cyan bold", width=100)
+            plugins_table.add_column("状态", style="yellow", justify="center", width=34)
+
             for plugin in discovered:
                 status = "已加载" if plugin in loaded else "未加载"
                 status_style = "green" if plugin in loaded else "red"
-                self.console.print(f"  {plugin}: [{status_style}]{status}[/{status_style}]")
+                plugins_table.add_row(
+                    plugin,
+                    Text(status, style=status_style)
+                )
+
+            plugins_panel = Panel(
+                plugins_table,
+                title="发现的插件",
+                subtitle=f"发现插件: {len(discovered)} 已加载插件:{len(loaded)}",
+                subtitle_align="left",
+                border_style="cyan",
+                box=box.ROUNDED,
+                padding=(0, 1),
+                width=self.panel_width
+            )
+
+            self.console.print(plugins_panel)
 
     def _show_plugin_directory(self):
         """显示插件目录"""
@@ -732,59 +719,59 @@ class PluginInterface:
         plugin_dir = self.config_manager.get_config("plugin_directory", "plugins")
         abs_plugin_dir = os.path.abspath(plugin_dir)
 
-        info_table = Table(
-            show_header=False,
-            box=box.SIMPLE,
-            show_edge=True,
-            width=self.panel_width - 2,
-            padding=(1, 2)
-        )
-        info_table.add_column("", style="white", width=self.panel_width - 6)
-        info_table.add_row(f"插件目录路径: {abs_plugin_dir}")
-
-        info_panel = Panel(
-            info_table,
-            border_style="blue",
-            box=box.ROUNDED,
-            padding=(0, 0),
-            width=self.panel_width
-        )
-
-        self.console.print(info_panel)
-
         if os.path.exists(abs_plugin_dir):
             files = os.listdir(abs_plugin_dir)
             if files:
-                self.console.print(f"\n[bold cyan]目录内容:[/bold cyan]")
+                self.console.print()
 
-                dir_table = Table(
-                    show_header=False,
-                    box=box.SIMPLE,
-                    show_edge=True,
-                    width=self.panel_width - 2,
-                    padding=(0, 2)
-                )
-                dir_table.add_column("类型", style="cyan", width=8)
-                dir_table.add_column("名称", style="white", width=self.panel_width - 12)
+                # 使用Tree组件显示目录结构
+                tree = Tree(f"📁 {os.path.basename(abs_plugin_dir)}", style="bold cyan")
+
+                # 分类显示文件和目录
+                directories = []
+                python_files = []
+                other_files = []
 
                 for file in files:
                     file_path = os.path.join(abs_plugin_dir, file)
-                    if os.path.isfile(file_path) and file.endswith('.py') and file != '__init__.py':
-                        dir_table.add_row("文件", file)
-                    elif os.path.isdir(file_path):
-                        dir_table.add_row("目录", f"{file}/")
+                    if os.path.isdir(file_path):
+                        directories.append(file)
+                    elif file.endswith('.py') and file != '__init__.py':
+                        python_files.append(file)
                     else:
-                        dir_table.add_row("文件", file)
+                        other_files.append(file)
 
-                dir_panel = Panel(
-                    dir_table,
-                    border_style="blue",
+                # 添加目录
+                if directories:
+                    dir_branch = tree.add("📁 目录", style="bold yellow")
+                    for dir_name in sorted(directories):
+                        dir_branch.add(f"📁 {dir_name}/", style="cyan")
+
+                # 添加Python文件
+                if python_files:
+                    py_branch = tree.add("🐍 Python插件文件", style="bold green")
+                    for py_file in sorted(python_files):
+                        py_branch.add(f"📄 {py_file}", style="green")
+
+                # 添加其他文件
+                if other_files:
+                    other_branch = tree.add("📄 其他文件", style="bold dim")
+                    for other_file in sorted(other_files):
+                        other_branch.add(f"📄 {other_file}", style="dim")
+
+                # 创建Tree面板
+                tree_panel = Panel(
+                    tree,
+                    title="目录内容",
+                    subtitle=f"插件目录路径: {abs_plugin_dir}",
+                    subtitle_align="center",
+                    border_style="cyan",
                     box=box.ROUNDED,
-                    padding=(0, 0),
+                    padding=(1, 2),
                     width=self.panel_width
                 )
 
-                self.console.print(dir_panel)
+                self.console.print(tree_panel)
             else:
                 self._show_message("目录为空", "yellow")
         else:
@@ -808,13 +795,16 @@ class PluginInterface:
         )
         self.console.print(title_panel)
 
-        # 显示插件列表供选择
+        # 显示插件列表供选择 - 调整Table设置
         select_table = Table(
             show_header=True,
             header_style="bold magenta",
             box=box.SIMPLE,
             border_style="blue",
-            show_lines=True,
+            show_lines=False,
+            collapse_padding=True,
+            pad_edge=False,
+            padding=(0, 0),
             width=self.panel_width - 2
         )
         select_table.add_column("编号", style="cyan", justify="center", width=8)
@@ -932,13 +922,16 @@ class PluginInterface:
         )
         self.console.print(title_panel)
 
-        # 显示插件列表供选择
+        # 显示插件列表供选择 - 调整Table设置
         select_table = Table(
             show_header=True,
             header_style="bold magenta",
             box=box.SIMPLE,
             border_style="blue",
-            show_lines=True,
+            show_lines=False,
+            collapse_padding=True,
+            pad_edge=False,
+            padding=(0, 0),
             width=self.panel_width - 2
         )
         select_table.add_column("编号", style="cyan", justify="center", width=8)
