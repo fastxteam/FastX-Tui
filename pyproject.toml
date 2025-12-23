@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fastx-tui"
-version = "0.1.45"
+version = "0.1.46"
 description = "FastX TUI - 统一视图架构版本"
 readme = "README.md"
 requires-python = ">=3.10"
