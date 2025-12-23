@@ -20,6 +20,8 @@ class ConfigInterface:
     def __init__(self, console: Console, config_manager: ConfigManager):
         self.console = console
         self.config_manager = config_manager
+        # 面板宽度
+        self.panel_width = 120
 
     def show_config_interface(self, view_manager=None) -> bool:
         """显示配置界面"""
@@ -42,7 +44,7 @@ class ConfigInterface:
             box=box.SIMPLE,
             border_style="cyan",
             padding=(0, 0),
-            width=80
+            width=self.panel_width
         )
         self.console.print(title_panel)
         self.console.print()
@@ -57,14 +59,14 @@ class ConfigInterface:
             show_header=False,
             box=box.SIMPLE,
             show_edge=True,
-            width=78,
+            width=self.panel_width - 2,
             padding=(0, 1)
         )
 
         # 使用三列布局
-        config_table.add_column("项目", style="cyan bold", width=20)
-        config_table.add_column("当前设置", style="white", width=40)
-        config_table.add_column("", width=18)  # 空列用于对齐
+        config_table.add_column("项目", style="cyan bold", width=25)
+        config_table.add_column("当前设置", style="white", width=65)
+        config_table.add_column("", width=30)  # 空列用于对齐
 
         config_table.add_row("主题", current_theme, "")
         config_table.add_row("语言", current_language, "")
@@ -76,25 +78,25 @@ class ConfigInterface:
             border_style="blue",
             box=box.ROUNDED,
             padding=(0, 0),
-            width=80
+            width=self.panel_width
         )
 
         self.console.print(config_panel)
         self.console.print()
 
-        # 创建操作命令表格 - 简单的一列显示
+        # 创建操作命令表格
         command_table = Table(
             show_header=True,
             header_style="bold magenta",
             box=box.SIMPLE,
             show_edge=True,
-            width=78,
+            width=self.panel_width - 2,
             padding=(0, 1)
         )
 
         # 一列显示所有命令，命令和描述分开
         command_table.add_column("命令", style="bold cyan", width=8)
-        command_table.add_column("具体操作", style="white", width=62)
+        command_table.add_column("具体操作", style="white", width=112)
 
         # 命令列表 - 直接显示所有命令
         commands = [
@@ -113,19 +115,19 @@ class ConfigInterface:
         command_panel = Panel(
             command_table,
             title="操作命令",
-            subtitle="0: 返回主菜单 | q: 退出 ",
+            subtitle="0: 返回主菜单 | q: 退出程序",
             subtitle_align="left",
-            border_style="blue",
+            border_style="green",
             box=box.ROUNDED,
             padding=(0, 0),
-            width=80
+            width=self.panel_width
         )
 
         self.console.print(command_panel)
 
         # 分隔线
         self.console.print()
-        self.console.print("─" * 80, style="dim")
+        self.console.print("─" * self.panel_width, style="dim")
 
         # 输入提示
         self.console.print("\n请输入命令编号: ", style="bold green", end="")
@@ -192,9 +194,9 @@ class ConfigInterface:
         title_panel = Panel(
             Text("当前配置", style="bold green"),
             box=box.SIMPLE,
-            border_style="blue",
+            border_style="green",
             padding=(0, 0),
-            width=80
+            width=self.panel_width
         )
         self.console.print(title_panel)
 
@@ -206,7 +208,7 @@ class ConfigInterface:
             border_style="blue",
             box=box.ROUNDED,
             padding=(1, 2),
-            width=80
+            width=self.panel_width
         )
         self.console.print(config_panel)
 
@@ -218,7 +220,7 @@ class ConfigInterface:
             box=box.SIMPLE,
             border_style="green",
             padding=(0, 0),
-            width=80
+            width=self.panel_width
         )
         self.console.print(title_panel)
 
@@ -231,33 +233,32 @@ class ConfigInterface:
             "green": "绿色主题"
         }
 
-        # 创建主题选择表格 - 简单的一列显示
+        # 创建主题选择表格
         theme_table = Table(
             show_header=False,
             box=box.SIMPLE,
             show_edge=True,
-            width=78,
+            width=self.panel_width - 2,
             padding=(0, 1)
         )
 
         # 一列显示所有主题选项
-        theme_table.add_column("编号", style="bold cyan", width=6)
-        theme_table.add_column("主题名称", style="white", width=20)
-        theme_table.add_column("说明", style="dim", width=52)
+        theme_table.add_column("编号", style="bold cyan", width=8)
+        theme_table.add_column("主题名称", style="white", width=25)
+        theme_table.add_column("说明", style="dim", width=87)
 
         # 添加主题选项
         for i, theme in enumerate(themes, 1):
             theme_table.add_row(str(i), theme, theme_info.get(theme, ""))
 
-        # 添加返回选项
-        theme_table.add_row("0", "返回", "")
-
         theme_panel = Panel(
             theme_table,
+            subtitle="0: 返回",
+            subtitle_align="left",
             border_style="blue",
             box=box.ROUNDED,
             padding=(0, 0),
-            width=80
+            width=self.panel_width
         )
 
         self.console.print(theme_panel)
@@ -290,7 +291,7 @@ class ConfigInterface:
                 box=box.SIMPLE,
                 border_style="cyan",
                 padding=(0, 0),
-                width=80
+                width=self.panel_width
             )
             self.console.print(title_panel)
             self.console.print()
@@ -307,12 +308,12 @@ class ConfigInterface:
                 box=box.SIMPLE,
                 border_style="blue",
                 show_lines=True,
-                width=78
+                width=self.panel_width - 2
             )
             settings_table.add_column("编号", style="cyan", justify="center", width=8)
-            settings_table.add_column("设置项", style="bold white", width=20)
-            settings_table.add_column("当前状态", style="yellow", justify="center", width=12)
-            settings_table.add_column("说明", style="dim", width=38)
+            settings_table.add_column("设置项", style="bold white", width=25)
+            settings_table.add_column("当前状态", style="yellow", justify="center", width=15)
+            settings_table.add_column("说明", style="dim", width=72)
 
             settings_table.add_row(
                 "1",
@@ -335,12 +336,12 @@ class ConfigInterface:
 
             settings_panel = Panel(
                 settings_table,
-                subtitle="0: 返回上一层",
+                subtitle="0: 返回",
                 subtitle_align="left",
                 border_style="blue",
                 box=box.ROUNDED,
                 padding=(0, 0),
-                width=80
+                width=self.panel_width
             )
 
             self.console.print(settings_panel)
@@ -383,7 +384,7 @@ class ConfigInterface:
             box=box.SIMPLE,
             border_style="green",
             padding=(0, 0),
-            width=80
+            width=self.panel_width
         )
         self.console.print(title_panel)
 
@@ -391,7 +392,7 @@ class ConfigInterface:
             show_header=False,
             box=box.SIMPLE,
             show_edge=True,
-            width=78,
+            width=self.panel_width - 2,
             padding=(1, 2)
         )
         warning_table.add_column("警告", style="bold red", justify="center")
@@ -402,7 +403,7 @@ class ConfigInterface:
             border_style="red",
             box=box.ROUNDED,
             padding=(0, 0),
-            width=80
+            width=self.panel_width
         )
 
         self.console.print(warning_panel)
@@ -440,17 +441,27 @@ class ConfigInterface:
             box=box.SIMPLE,
             border_style="green",
             padding=(0, 0),
-            width=80
+            width=self.panel_width
         )
         self.console.print(title_panel)
 
         # 说明面板
+        info_table = Table(
+            show_header=False,
+            box=box.SIMPLE,
+            show_edge=True,
+            width=self.panel_width - 2,
+            padding=(1, 2)
+        )
+        info_table.add_column("", style="white")
+        info_table.add_row("请输入导出文件名 (默认: fastx-tui_config.json)")
+
         info_panel = Panel(
-            "请输入导出文件名 (默认: fastx-tui_config.json)",
+            info_table,
             border_style="blue",
             box=box.ROUNDED,
-            padding=(1, 2),
-            width=80
+            padding=(0, 0),
+            width=self.panel_width
         )
         self.console.print(info_panel)
         self.console.print()
@@ -475,17 +486,27 @@ class ConfigInterface:
             box=box.SIMPLE,
             border_style="green",
             padding=(0, 0),
-            width=80
+            width=self.panel_width
         )
         self.console.print(title_panel)
 
         # 说明面板
+        info_table = Table(
+            show_header=False,
+            box=box.SIMPLE,
+            show_edge=True,
+            width=self.panel_width - 2,
+            padding=(1, 2)
+        )
+        info_table.add_column("", style="white")
+        info_table.add_row("请输入导入文件名")
+
         info_panel = Panel(
-            "请输入导入文件名",
+            info_table,
             border_style="blue",
             box=box.ROUNDED,
-            padding=(1, 2),
-            width=80
+            padding=(0, 0),
+            width=self.panel_width
         )
         self.console.print(info_panel)
         self.console.print()
@@ -511,6 +532,6 @@ class ConfigInterface:
             border_style=color,
             box=box.ROUNDED,
             padding=(1, 2),
-            width=80
+            width=self.panel_width
         )
         self.console.print(message_panel)
