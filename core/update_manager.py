@@ -127,6 +127,37 @@ class UpdateManager:
             
         return self.update_available, self.latest_version
     
+    def get_available_versions(self, per_page: int = 10) -> Dict:
+        """获取所有可用的发布版本
+        
+        Args:
+            per_page: 获取的版本数量
+            
+        Returns:
+            Dict: 包含可用版本列表的字典
+        """
+        logger.info(f"获取可用的发布版本，数量: {per_page}")
+        
+        # 检查网络工具是否可用
+        if not self.network_tools:
+            logger.warning("网络工具不可用，无法获取可用版本")
+            return {'success': False, 'error': '网络工具不可用'}
+            
+        try:
+            # 使用网络工具插件获取所有发布版本
+            result = self.network_tools.get_all_github_releases(
+                repo="fastxteam/FastX-Tui",
+                per_page=per_page
+            )
+            
+            logger.debug(f"可用版本获取结果: {result}")
+            
+            return result
+                
+        except Exception as e:
+            logger.exception("获取可用版本发生异常")
+            return {'success': False, 'error': str(e)}
+    
     def get_version_info(self) -> Dict[str, Any]:
         """获取版本信息
         
@@ -173,22 +204,14 @@ class UpdateManager:
         """
         if not self.update_available or not self.latest_version:
             logger.info("没有可用更新")
-            if self.console:
-                self.console.print("[yellow]没有可用更新[/yellow]")
             return False
         
         logger.info(f"开始更新应用，当前版本: {self.current_version}, 最新版本: {self.latest_version}")
-        if self.console:
-            self.console.print(f"[green]开始更新应用...[/green]")
-            self.console.print(f"当前版本: {self.current_version}")
-            self.console.print(f"最新版本: {self.latest_version}")
         
         try:
             # 检查网络工具是否可用
             if not self.network_tools:
                 logger.error("网络工具不可用，无法下载更新")
-                if self.console:
-                    self.console.print("[red]网络工具不可用，无法下载更新[/red]")
                 return False
             
             # 确定当前运行的是exe还是python脚本
@@ -203,8 +226,6 @@ class UpdateManager:
                 
         except Exception as e:
             logger.exception("更新过程发生异常")
-            if self.console:
-                self.console.print(f"[red]更新失败: {str(e)}[/red]")
             return False
     
     def _update_from_exe(self) -> bool:
@@ -219,8 +240,7 @@ class UpdateManager:
             current_exe_dir = os.path.dirname(current_exe_path)
             current_exe_name = os.path.basename(current_exe_path)
             
-            if self.console:
-                self.console.print(f"[cyan]检测到当前运行的是可执行文件: {current_exe_name}[/cyan]")
+            logger.info(f"检测到当前运行的是可执行文件: {current_exe_name}")
             
             # 根据平台获取下载URL
             exe_url = self._get_exe_download_url()
@@ -229,8 +249,7 @@ class UpdateManager:
             
             # 下载新版本到当前目录
             new_exe_path = os.path.join(current_exe_dir, f"fastx-tui_new.exe")
-            if self.console:
-                self.console.print(f"[cyan]正在下载新版本: {exe_url}[/cyan]")
+            logger.info(f"正在下载新版本: {exe_url}")
             
             success = self._download_file(exe_url, new_exe_path)
             if not success:
@@ -239,12 +258,9 @@ class UpdateManager:
             # 验证下载的文件
             if not os.path.exists(new_exe_path) or os.path.getsize(new_exe_path) == 0:
                 logger.error("下载的文件无效")
-                if self.console:
-                    self.console.print("[red]下载的文件无效[/red]")
                 return False
             
-            if self.console:
-                self.console.print("[green]新版本下载成功[/green]")
+            logger.info("新版本下载成功")
             
             # 创建批处理脚本用于更新
             batch_script_path = os.path.join(current_exe_dir, f"fastx-tui_update.bat")
@@ -272,9 +288,7 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
                 f.flush()  # 刷新缓冲区到OS
                 os.fsync(f.fileno())  # 强制写入磁盘
             
-            if self.console:
-                self.console.print("[green]更新脚本创建成功[/green]")
-                self.console.print("[yellow]应用将退出并开始更新...[/yellow]")
+            logger.info("更新脚本创建成功")
             
             # 使用cmd.exe显式执行批处理脚本，确保正确运行
             subprocess.Popen(
@@ -290,8 +304,6 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
             
         except Exception as e:
             logger.exception("从exe更新失败")
-            if self.console:
-                self.console.print(f"[red]从exe更新失败: {str(e)}[/red]")
             return False
     
     def _update_from_script(self) -> bool:
@@ -301,15 +313,13 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
             bool: 更新是否成功
         """
         try:
-            if self.console:
-                self.console.print("[cyan]检测到当前运行的是Python脚本[/cyan]")
-                self.console.print("[cyan]使用pip更新应用...[/cyan]")
+            logger.info("检测到当前运行的是Python脚本")
+            logger.info("使用pip更新应用...")
             
             # 使用pip更新
             update_command = [sys.executable, '-m', 'pip', 'install', '--upgrade', 'fastx_tui']
             
-            if self.console:
-                self.console.print(f"[yellow]执行命令: {' '.join(update_command)}[/yellow]")
+            logger.info(f"执行命令: {' '.join(update_command)}")
             
             result = subprocess.run(
                 update_command,
@@ -320,19 +330,13 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
             
             if result.returncode == 0:
                 logger.info("应用更新成功")
-                if self.console:
-                    self.console.print("[green]应用更新成功! 请重启应用以应用新功能[/green]")
                 return True
             else:
                 logger.error(f"应用更新失败: {result.stderr}")
-                if self.console:
-                    self.console.print(f"[red]应用更新失败: {result.stderr}[/red]")
                 return False
                 
         except Exception as e:
             logger.exception("从脚本更新失败")
-            if self.console:
-                self.console.print(f"[red]从脚本更新失败: {str(e)}[/red]")
             return False
     
     def _get_exe_download_url(self) -> Optional[str]:
@@ -349,8 +353,6 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
         
         if not platform_identifier:
             logger.error(f"不支持的平台: {current_platform}")
-            if self.console:
-                self.console.print(f"[red]不支持的平台: {current_platform}[/red]")
             return None
         
         # 如果没有assets信息，尝试直接构建URL作为备选方案
@@ -389,8 +391,6 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
             return matched_asset['browser_download_url']
         else:
             logger.error(f"未找到匹配的可执行文件，assets列表: {[asset['name'] for asset in self.assets]}")
-            if self.console:
-                self.console.print(f"[red]未找到匹配的可执行文件[/red]")
             return None
     
     def _download_file(self, url: str, save_path: str) -> bool:
@@ -406,8 +406,7 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
         try:
             import urllib.request
             
-            if self.console:
-                self.console.print(f"[cyan]开始下载: {url}[/cyan]")
+            logger.info(f"开始下载: {url}")
             
             # 下载文件
             response = urllib.request.urlopen(url, timeout=30)
@@ -424,26 +423,21 @@ start "" "{os.path.join(current_exe_dir, current_exe_name)}"
                     file.write(buffer)
                     downloaded += len(buffer)
                     
-                    # 显示下载进度
-                    if total_size > 0 and self.console:
+                    # 记录下载进度
+                    if total_size > 0:
                         progress = int((downloaded / total_size) * 100)
-                        self.console.print(f"[cyan]下载进度: {progress}%[/cyan] [{downloaded}/{total_size} bytes]", end="\r")
-            
-            if self.console:
-                self.console.print()  # 换行
+                        # 每10%记录一次进度，避免日志过于密集
+                        if progress % 10 == 0 or downloaded == total_size:
+                            logger.info(f"下载进度: {progress}% [{downloaded}/{total_size} bytes]")
             
             logger.info(f"文件下载成功: {save_path}, 大小: {os.path.getsize(save_path)} bytes")
             return True
             
         except urllib.error.URLError as e:
             logger.error(f"下载失败: {str(e)}")
-            if self.console:
-                self.console.print(f"[red]下载失败: {str(e)}[/red]")
             return False
         except Exception as e:
             logger.exception("下载文件发生异常")
-            if self.console:
-                self.console.print(f"[red]下载文件发生异常: {str(e)}[/red]")
             return False
     
 

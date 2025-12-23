@@ -464,6 +464,59 @@ class NetworkToolsPlugin(Plugin):
                 'update_available': False
             }
     
+    def get_all_github_releases(self, repo: str = "fastxteam/FastX-Tui", per_page: int = 10) -> Dict:
+        """获取GitHub上的所有发布版本"""
+        url = f"https://api.github.com/repos/{repo}/releases?per_page={per_page}"
+        
+        try:
+            # 创建请求对象
+            req = urllib.request.Request(url)
+            req.add_header('User-Agent', 'FastX-Tui')
+            
+            # 发送请求
+            with urllib.request.urlopen(req, timeout=10) as response:
+                # 读取并解析响应
+                data = json.loads(response.read().decode())
+                
+                releases = []
+                for release in data:
+                    # 跳过预发布版本
+                    if release.get('prerelease', False):
+                        continue
+                    
+                    releases.append({
+                        'version': release.get('tag_name', '').lstrip('v'),
+                        'name': release.get('name', ''),
+                        'published_at': release.get('published_at', ''),
+                        'html_url': release.get('html_url', ''),
+                        'body': release.get('body', ''),
+                        'assets': release.get('assets', [])
+                    })
+                
+                return {
+                    'success': True,
+                    'releases': releases
+                }
+                
+        except urllib.error.URLError as e:
+            self.log_error(f"GitHub发布版本获取失败: 网络错误 - {str(e)}")
+            return {
+                'success': False,
+                'error': f"网络错误: {str(e)}"
+            }
+        except json.JSONDecodeError as e:
+            self.log_error(f"GitHub发布版本获取失败: JSON解析错误 - {str(e)}")
+            return {
+                'success': False,
+                'error': f"JSON解析错误: {str(e)}"
+            }
+        except Exception as e:
+            self.log_error(f"GitHub发布版本获取失败: 未知错误 - {str(e)}")
+            return {
+                'success': False,
+                'error': f"未知错误: {str(e)}"
+            }
+    
     def _compare_versions(self, current: str, latest: str) -> bool:
         """比较版本号，返回是否需要更新"""
         if not current or not latest:

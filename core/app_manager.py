@@ -23,6 +23,7 @@ from features.help.help_interface import HelpInterface
 from features.config.config_interface import ConfigInterface
 from features.plugin.plugin_interface import PluginInterface
 from features.logging.logging_interface import LoggingInterface
+from features.update.update_interface import UpdateInterface
 
 class AppManager:
     """应用管理器"""
@@ -90,9 +91,12 @@ class AppManager:
         self.network_tools = NetworkToolsPlugin()
         self.network_tools.initialize()
         
-        # 初始化更新管理器
-        self.update_manager = UpdateManager(self.config_manager, self.current_version, self.console)
+        # 初始化更新管理器（核心逻辑）
+        self.update_manager = UpdateManager(self.config_manager, self.current_version)
         self.update_manager.set_network_tools(self.network_tools)
+        
+        # 初始化更新功能界面
+        self.update_interface = UpdateInterface(self.update_manager, self.console)
         
         # 将update_manager传递给view_manager
         self.view_manager.set_update_manager(self.update_manager)
@@ -770,25 +774,8 @@ class AppManager:
     
     def update_app(self):
         """检查并更新应用到最新版本"""
-        # 先检查是否有可用更新
-        update_available, latest_version = self.update_manager.check_for_updates(force_check=True)
-        
-        if update_available:
-            # 执行更新
-            success = self.update_manager.update_app()
-            if success:
-                # 询问用户是否重启应用
-                from rich.prompt import Confirm
-                should_restart = Confirm.ask("\n是否立即重启应用以应用更新?")
-                if should_restart:
-                    import os
-                    import sys
-                    # 重启应用
-                    self.console.print("[green]正在重启应用...[/green]")
-                    self.cleanup()
-                    os.execl(sys.executable, sys.executable, *sys.argv)
-        else:
-            self.console.print("[yellow]当前已是最新版本，无需更新[/yellow]")
+        # 使用更新功能界面处理更新逻辑
+        self.update_interface.handle_update_command()
     
     def handle_exit(self):
         """处理退出"""
