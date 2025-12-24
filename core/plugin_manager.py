@@ -5,6 +5,7 @@
 import os
 import importlib
 import sys
+import subprocess
 from typing import Dict, List, Optional, Any
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -258,11 +259,14 @@ class PluginManager:
         # 加载插件配置
         self._load_plugin_configs()
         
+        # 初始化虚拟环境管理器
+        from .venv_manager import VenvManager
+        self.venv_manager = VenvManager()
+        
     def _load_plugin_configs(self):
         """加载插件配置"""
         if self.config_manager:
-            plugin_configs = self.config_manager.get_config("plugin_configs", {})
-            self.plugin_configs = plugin_configs
+            self.plugin_configs = self.config_manager.list_plugin_configs()
         else:
             # 没有配置管理器时使用默认配置
             self.plugin_configs = {}
@@ -270,7 +274,8 @@ class PluginManager:
     def _save_plugin_configs(self):
         """保存插件配置"""
         if self.config_manager:
-            self.config_manager.set_config("plugin_configs", self.plugin_configs)
+            # 插件配置已通过config_manager的update_plugin_config等方法保存，无需额外操作
+            pass
     
     def get_plugin_config(self, plugin_name: str) -> Dict:
         """获取插件配置"""
@@ -279,6 +284,8 @@ class PluginManager:
     def set_plugin_config(self, plugin_name: str, config: Dict):
         """设置插件配置"""
         self.plugin_configs[plugin_name] = config
+        if self.config_manager:
+            self.config_manager.set_plugin_config(plugin_name, config)
         self._save_plugin_configs()
     
     def discover_plugins(self) -> List[str]:
@@ -321,10 +328,31 @@ class PluginManager:
                 entry_file = os.path.join(self.plugin_dir, f"{plugin_name}.py")
                 module_name = plugin_name
             
+            # 检查插件入口文件是否存在
+            if not os.path.exists(entry_file):
+                self.logger.warning(f"无法找到插件 {plugin_name} 的入口文件")
+                return None
+            
+            # 为插件创建虚拟环境
+            if not self.venv_manager.venv_exists(plugin_name):
+                if not self.venv_manager.create_venv(plugin_name, plugin_path):
+                    self.logger.error(f"无法为插件 {plugin_name} 创建虚拟环境")
+                    return None
+            else:
+                # 更新虚拟环境依赖
+                if not self.venv_manager.update_venv(plugin_name, plugin_path):
+                    self.logger.error(f"无法更新插件 {plugin_name} 的虚拟环境依赖")
+                    return None
+            
+            # 使用插件虚拟环境中的Python解释器来加载插件信息
+            venv_python_path = self.venv_manager.get_venv_python_path(plugin_name)
+            
             # 动态导入插件模块
             spec = importlib.util.spec_from_file_location(
                 module_name,
-                entry_file
+                entry_file,
+                # 使用插件虚拟环境中的Python解释器
+                loader=importlib.machinery.SourceFileLoader(module_name, entry_file)
             )
             if spec is None:
                 self.logger.warning(f"无法找到插件 {plugin_name} 的入口文件")
@@ -336,6 +364,21 @@ class PluginManager:
             # 将插件目录添加到模块的搜索路径中，以便插件可以导入自己的子模块
             if is_repo_plugin:
                 sys.path.insert(0, plugin_path)
+            
+            # 获取虚拟环境的site-packages路径
+            result = subprocess.run(
+                [venv_python_path, "-c", "import sys; print('\\n'.join(sys.path))"],
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                # 将虚拟环境的site-packages路径添加到模块的搜索路径中
+                venv_sys_path = result.stdout.strip().split('\n')
+                for path in venv_sys_path:
+                    # 检查路径是否已经在sys.path中，避免重复添加
+                    if path not in sys.path:
+                        sys.path.insert(0, path)
             
             spec.loader.exec_module(module)
             
@@ -371,6 +414,8 @@ class PluginManager:
                 if plugin_name not in self.plugin_configs:
                     self.plugin_configs[plugin_name] = {}
                 self.plugin_configs[plugin_name][config_name] = value
+                if self.config_manager:
+                    self.config_manager.update_plugin_config(plugin_name, config_name, value)
                 self._save_plugin_configs()
             
             # 替换插件的配置访问方法
@@ -590,6 +635,9 @@ class PluginManager:
                 self.logger.warning(f"插件 {plugin_name} 不存在")
                 return False
             
+            # 删除插件的虚拟环境
+            self.venv_manager.delete_venv(plugin_name)
+            
             # 从插件列表中移除
             if plugin_name in self.all_plugins:
                 self.all_plugins.remove(plugin_name)
@@ -605,6 +653,8 @@ class PluginManager:
             # 移除插件配置
             if plugin_name in self.plugin_configs:
                 del self.plugin_configs[plugin_name]
+                if self.config_manager:
+                    self.config_manager.remove_plugin_config(plugin_name)
                 self._save_plugin_configs()
             
             return True
@@ -667,6 +717,9 @@ class PluginManager:
         
         self.plugins.clear()
         self.loaded_plugins.clear()
+        
+        # 清理虚拟环境管理器
+        self.venv_manager.cleanup()
     
     def install_plugin_from_github(self, repo_url: str) -> bool:
         """从GitHub仓库安装插件"""
@@ -766,7 +819,18 @@ class PluginManager:
                 del self.plugins[plugin_name]
                 if plugin_name in self.loaded_plugins:
                     self.loaded_plugins.remove(plugin_name)
+            
+            # 重新创建或更新虚拟环境
+            plugin_path = os.path.join(self.plugin_dir, plugin_name)
+            if os.path.exists(plugin_path):
+                # 删除旧的虚拟环境
+                self.venv_manager.delete_venv(plugin_name)
                 
+                # 重新创建虚拟环境
+                if not self.venv_manager.create_venv(plugin_name, plugin_path):
+                    self.logger.error(f"无法为插件 {plugin_name} 重新创建虚拟环境")
+                    return False
+            
             # 重新加载插件
             plugin = self.load_plugin(plugin_name)
             return plugin is not None

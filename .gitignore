@@ -3,5 +3,7 @@
 .idea/
 __pycache__/
 /dist/
-/fastx_tui.egg-info/
 /tests/
+/.venv_plugins/
+test*.py
+*.egg-info/

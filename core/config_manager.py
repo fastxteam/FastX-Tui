@@ -20,6 +20,7 @@ class ConfigManager:
         # 初始化配置
         self.config = AppConfigSchema()
         self.preferences = UserPreferencesSchema()
+        self.plugin_configs = {}  # 插件配置，key为插件名称，value为配置字典
         
         # 初始化数据库连接和表
         self._init_db()
@@ -68,6 +69,10 @@ class ConfigManager:
             cursor.execute('SELECT key, value FROM configs WHERE type = ?', ('preference',))
             pref_data = {row[0]: json.loads(row[1]) for row in cursor.fetchall()}
             
+            # 加载插件配置
+            cursor.execute('SELECT key, value FROM configs WHERE type = ?', ('plugin',))
+            self.plugin_configs = {row[0]: json.loads(row[1]) for row in cursor.fetchall()}
+            
             # 使用 Pydantic 验证并更新配置
             if config_data:
                 self.config = AppConfigSchema(**config_data)
@@ -103,6 +108,10 @@ class ConfigManager:
             for key, value in pref_dict.items():
                 self._upsert_config(key, value, 'preference')
             
+            # 保存插件配置
+            for plugin_name, plugin_config in self.plugin_configs.items():
+                self._upsert_config(plugin_name, plugin_config, 'plugin')
+            
             # 提交事务
             self._conn.commit()
         except sqlite3.Error as e:
@@ -131,6 +140,7 @@ class ConfigManager:
             # 重置配置对象
             self.config = AppConfigSchema()
             self.preferences = UserPreferencesSchema()
+            self.plugin_configs = {}  # 重置插件配置
             
             # 清空数据库中的配置
             cursor = self._conn.cursor()
@@ -140,6 +150,35 @@ class ConfigManager:
             self._save_config()
         except sqlite3.Error as e:
             print(f"[错误] 重置默认配置失败: {str(e)}")
+    
+    def get_plugin_config(self, plugin_name: str, default: Any = None) -> Any:
+        """获取插件配置"""
+        return self.plugin_configs.get(plugin_name, default)
+    
+    def set_plugin_config(self, plugin_name: str, config: Dict):
+        """设置插件配置"""
+        self.plugin_configs[plugin_name] = config
+        self._save_config()
+    
+    def update_plugin_config(self, plugin_name: str, key: str, value: Any):
+        """更新插件配置项"""
+        if plugin_name not in self.plugin_configs:
+            self.plugin_configs[plugin_name] = {}
+        self.plugin_configs[plugin_name][key] = value
+        self._save_config()
+    
+    def remove_plugin_config(self, plugin_name: str):
+        """删除插件配置"""
+        if plugin_name in self.plugin_configs:
+            del self.plugin_configs[plugin_name]
+            # 同时从数据库中删除
+            cursor = self._conn.cursor()
+            cursor.execute('DELETE FROM configs WHERE key = ? AND type = ?', (plugin_name, 'plugin'))
+            self._conn.commit()
+    
+    def list_plugin_configs(self) -> Dict[str, Any]:
+        """列出所有插件配置"""
+        return self.plugin_configs.copy()
     
     def get_config(self, key: str, default: Any = None) -> Any:
         """获取配置值"""
@@ -266,19 +305,26 @@ class ConfigManager:
         
         # 显示配置
         info.append(f"\n主配置:")
-        info.append(f"  主题: {self.config.theme}")
-        info.append(f"  语言: {self.config.language}")
-        info.append(f"  命令超时: {self.config.command_timeout}秒")
-        info.append(f"  自动加载插件: {'是' if self.config.plugin_auto_load else '否'}")
-        info.append(f"  显示欢迎页面: {'是' if self.config.show_welcome_page else '否'}")
-        info.append(f"  自动检查更新: {'是' if self.config.auto_check_updates else '否'}")
-        info.append(f"  自动清屏: {'是' if self.config.auto_clear_screen else '否'}")
+        info.append(f"  主题: {getattr(self.config, 'theme', 'default')}")
+        info.append(f"  语言: {getattr(self.config, 'language', 'zh_CN')}")
+        info.append(f"  命令超时: {getattr(self.config, 'command_timeout', 30)}秒")
+        info.append(f"  自动加载插件: {'是' if getattr(self.config, 'plugin_auto_load', True) else '否'}")
+        info.append(f"  显示欢迎页面: {'是' if getattr(self.config, 'show_welcome_page', True) else '否'}")
+        info.append(f"  自动检查更新: {'是' if getattr(self.config, 'auto_check_updates', True) else '否'}")
+        info.append(f"  自动清屏: {'是' if getattr(self.config, 'auto_clear_screen', True) else '否'}")
         
         # 显示用户偏好
         info.append(f"\n用户偏好:")
-        info.append(f"  收藏项目数: {len(self.preferences.favorite_items)}")
-        info.append(f"  最近使用数: {len(self.preferences.recently_used)}")
-        info.append(f"  自定义快捷键: {len(self.preferences.custom_shortcuts)}个")
+        info.append(f"  收藏项目数: {len(getattr(self.preferences, 'favorite_items', []))}")
+        info.append(f"  最近使用数: {len(getattr(self.preferences, 'recently_used', []))}")
+        info.append(f"  自定义快捷键: {len(getattr(self.preferences, 'custom_shortcuts', {}))}个")
+        
+        # 显示插件配置
+        info.append(f"\n插件配置:")
+        info.append(f"  已配置插件数: {len(self.plugin_configs)}")
+        if self.plugin_configs:
+            enabled_plugins = sum(1 for config in self.plugin_configs.values() if config.get('enabled', True))
+            info.append(f"  启用插件数: {enabled_plugins}")
         
         # 显示文件信息
         info.append(f"\n文件信息:")
