@@ -40,6 +40,10 @@ class Plugin(ABC):
         self.logger = get_logger(self.__class__.__name__)
         # 插件目录路径，在加载时由PluginManager设置
         self.plugin_path = None
+        # 跟踪主菜单注册数量，用于限制每个插件只能注册一个主菜单
+        self.main_menus_registered = 0
+        # 插件注册的主菜单ID，用于跟踪
+        self.main_menu_id = None
     
     @abstractmethod
     def get_info(self) -> PluginInfo:
@@ -70,6 +74,52 @@ class Plugin(ABC):
         if self.plugin_path:
             return os.path.join(self.plugin_path, "resources", resource_name)
         return resource_name
+    
+    def get_manual(self) -> str:
+        """获取插件手册，返回Markdown格式的帮助内容
+        
+        Returns:
+            str: Markdown格式的插件手册
+        """
+        return "# 插件手册\n\n该插件未提供帮助文档。"
+    
+    def get_config_schema(self) -> Dict[str, Any]:
+        """获取插件配置模式，定义插件的配置项及约束
+        
+        Returns:
+            Dict[str, Any]: 配置项模式，包含配置名、类型、默认值、说明、可选值等
+        """
+        return {
+            "enabled": {
+                "type": "boolean",
+                "default": True,
+                "description": "是否启用该插件",
+                "required": True
+            }
+        }
+    
+    def get_config(self, config_name: str, default: Any = None) -> Any:
+        """获取插件配置值
+        
+        Args:
+            config_name: 配置项名称
+            default: 默认值
+            
+        Returns:
+            Any: 配置值
+        """
+        # 该方法将在PluginManager中被重写，使用配置管理器获取配置
+        return default
+    
+    def set_config(self, config_name: str, value: Any):
+        """设置插件配置值
+        
+        Args:
+            config_name: 配置项名称
+            value: 配置值
+        """
+        # 该方法将在PluginManager中被重写，使用配置管理器设置配置
+        pass
     
     def log_debug(self, msg: str, *args, **kwargs):
         """记录调试日志"""
@@ -215,6 +265,23 @@ class PluginManager:
             if is_repo_plugin:
                 plugin_instance.plugin_path = plugin_path
             
+            # 动态替换插件的配置访问方法
+            def plugin_get_config(config_name, default=None):
+                """动态生成的获取配置方法"""
+                plugin_config = self.plugin_configs.get(plugin_name, {})
+                return plugin_config.get(config_name, default)
+            
+            def plugin_set_config(config_name, value):
+                """动态生成的设置配置方法"""
+                if plugin_name not in self.plugin_configs:
+                    self.plugin_configs[plugin_name] = {}
+                self.plugin_configs[plugin_name][config_name] = value
+                self._save_plugin_configs()
+            
+            # 替换插件的配置访问方法
+            plugin_instance.get_config = plugin_get_config
+            plugin_instance.set_config = plugin_set_config
+            
             plugin_info = plugin_instance.get_info()
             
             if not plugin_info.enabled:
@@ -291,11 +358,20 @@ class PluginManager:
     
     def register_all_plugins(self, menu_system: MenuSystem):
         """注册所有插件到菜单系统"""
-        for plugin in self.plugins.values():
+        for plugin_name, plugin in self.plugins.items():
             try:
+                # 重置主菜单计数
+                plugin.main_menus_registered = 0
+                plugin.main_menu_id = None
+                
+                # 注册插件
                 plugin.register(menu_system)
+                
+                # 检查是否注册了多个主菜单
+                if plugin.main_menus_registered > 1:
+                    self.logger.warning(f"插件 {plugin_name} 注册了 {plugin.main_menus_registered} 个主菜单，根据规范只能注册一个主菜单")
             except Exception as e:
-                self.logger.error(f"注册插件失败: {str(e)}")
+                self.logger.error(f"注册插件 {plugin_name} 失败: {str(e)}")
     
     def get_plugin(self, plugin_name: str) -> Optional[Plugin]:
         """获取插件实例"""

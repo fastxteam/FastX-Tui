@@ -62,10 +62,10 @@ class AppManager:
         self.search_feature = SearchInterface(self.menu_system, self.console, self.config_manager)
         
         # 初始化帮助功能
-        self.help_feature = HelpInterface(self.console)
+        self.help_feature = HelpInterface(self.console, self.plugin_manager)
         
         # 初始化配置功能
-        self.config_interface = ConfigInterface(self.console, self.config_manager)
+        self.config_interface = ConfigInterface(self.console, self.config_manager, self.plugin_manager)
         
         # 初始化插件功能
         self.plugin_interface = PluginInterface(self.console, self.plugin_manager, self.menu_system, self.config_manager)
@@ -133,6 +133,9 @@ class AppManager:
             
             # 重新构建插件菜单，确保所有插件命令都被正确添加
             self._rebuild_plugin_menu()
+            
+            # 重新初始化HelpInterface，确保插件手册已加载
+            self.help_feature = HelpInterface(self.console, self.plugin_manager)
         
         # 应用用户偏好
         self._apply_user_preferences()

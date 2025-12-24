@@ -31,9 +31,12 @@ else:
 class HelpInterface:
     """帮助功能实现"""
 
-    def __init__(self, console: Console):
+    def __init__(self, console: Console, plugin_manager=None):
         self.console = console
+        self.plugin_manager = plugin_manager
         self.current_page = "basic"  # 当前页面
+        
+        # 基础章节
         self.sections = {
             "basic": {"name": "基本信息", "icon": ""},
             "short": {"name": "常用快捷键", "icon": ""},
@@ -42,7 +45,18 @@ class HelpInterface:
             "plug": {"name": "插件开发", "icon": ""},
             "plapi": {"name": "插件API", "icon": ""}
         }
+        
+        # 插件手册章节（动态添加）
+        self.plugin_sections = {}
+        if plugin_manager:
+            self._load_plugin_manuals()
+        
+        # 合并所有章节
+        self.all_sections = {**self.sections, **self.plugin_sections}
+        
         self.running = True
+        self.showing_plugin_manual = False
+        self.current_plugin = None
 
     def get_version(self) -> str:
         """获取版本信息"""
@@ -51,6 +65,30 @@ class HelpInterface:
             return FULL_VERSION
         except ImportError:
             return "v0.1.0"
+    
+    def _load_plugin_manuals(self):
+        """加载所有插件的手册"""
+        if not self.plugin_manager:
+            return
+        
+        # 直接使用已加载的插件
+        for plugin_name in self.plugin_manager.loaded_plugins:
+            # 获取插件实例
+            plugin = self.plugin_manager.get_plugin(plugin_name)
+            if plugin:
+                # 获取插件信息
+                plugin_info = plugin.get_info()
+                display_name = plugin_info.name
+                
+                # 创建插件手册章节ID，使用plugin_前缀
+                section_id = f"plugin_{plugin_name.lower().replace('-', '_')}"
+                
+                # 添加到插件章节字典
+                self.plugin_sections[section_id] = {
+                    "name": f"插件手册 - {display_name}",
+                    "icon": "",
+                    "plugin_name": plugin_name
+                }
 
     def create_layout(self) -> Layout:
         """创建基础布局"""
@@ -74,7 +112,7 @@ class HelpInterface:
     def update_header(self) -> Panel:
         """创建头部Panel"""
         title = f"FastX-Tui 帮助系统"
-        section_name = self.sections[self.current_page]["name"]
+        section_name = self.all_sections[self.current_page]["name"]
 
         return Panel(
             f"{title} - {section_name}",
@@ -88,7 +126,7 @@ class HelpInterface:
         nav_text = "[bold]导航菜单[/bold]\n\n"
 
         # 生成导航项目
-        for i, (page_key, section) in enumerate(self.sections.items(), 1):
+        for i, (page_key, section) in enumerate(self.all_sections.items(), 1):
             name = section['name']
             shortcut = str(i)
 
@@ -109,24 +147,63 @@ class HelpInterface:
 
     def update_content(self) -> Panel:
         """根据当前页面创建内容Panel"""
-        if self.current_page == "basic":
-            return self._create_basic_info()
-        elif self.current_page == "short":
-            return self._create_shortcuts()
-        elif self.current_page == "navi":
-            return self._create_navigation()
-        elif self.current_page == "feat":
-            return self._create_features()
-        elif self.current_page == "plug":
-            return self._create_plugin_development()
-        elif self.current_page == "plapi":
-            return self._create_plugin_api()
-        else:
-            return Panel("未知页面", border_style="red")
+        if self.current_page in self.sections:
+            # 基础章节
+            if self.current_page == "basic":
+                return self._create_basic_info()
+            elif self.current_page == "short":
+                return self._create_shortcuts()
+            elif self.current_page == "navi":
+                return self._create_navigation()
+            elif self.current_page == "feat":
+                return self._create_features()
+            elif self.current_page == "plug":
+                return self._create_plugin_development()
+            elif self.current_page == "plapi":
+                return self._create_plugin_api()
+        elif self.current_page in self.plugin_sections:
+            # 插件手册章节
+            plugin_section = self.plugin_sections[self.current_page]
+            plugin_name = plugin_section["plugin_name"]
+            
+            # 获取插件实例
+            plugin = self.plugin_manager.get_plugin(plugin_name)
+            if plugin:
+                try:
+                    # 获取插件手册
+                    manual_content = plugin.get_manual()
+                    
+                    # 使用Markdown渲染
+                    from rich.markdown import Markdown
+                    markdown = Markdown(manual_content)
+                    
+                    return Panel(
+                        markdown,
+                        border_style="cyan",
+                        box=ROUNDED,
+                        padding=(1, 2),
+                        title=f"插件手册 - {plugin.get_info().name}"
+                    )
+                except Exception as e:
+                    return Panel(
+                        f"加载插件手册失败: {str(e)}",
+                        border_style="red",
+                        box=ROUNDED,
+                        title=f"插件手册 - {plugin_name}"
+                    )
+            else:
+                return Panel(
+                    f"无法找到插件: {plugin_name}",
+                    border_style="red",
+                    box=ROUNDED,
+                    title="插件手册"
+                )
+        
+        return Panel("未知页面", border_style="red")
 
     def update_footer(self) -> Panel:
         """创建底部状态栏Panel"""
-        status = f"当前页面: {self.current_page} | 快捷键: 1-{len(self.sections)}切换, q退出"
+        status = f"当前页面: {self.current_page} | 快捷键: 1-{len(self.all_sections)}切换, q退出"
         return Panel(
             status,
             style="dim",
@@ -207,19 +284,19 @@ class HelpInterface:
                 # 数字键处理
                 if ch.isdigit():
                     section_index = int(ch) - 1
-                    if 0 <= section_index < len(self.sections):
-                        self.current_page = list(self.sections.keys())[section_index]
+                    if 0 <= section_index < len(self.all_sections):
+                        self.current_page = list(self.all_sections.keys())[section_index]
 
                 # 方向键处理
                 elif ch == 'left':
-                    current_index = list(self.sections.keys()).index(self.current_page)
-                    new_index = (current_index - 1) % len(self.sections)
-                    self.current_page = list(self.sections.keys())[new_index]
+                    current_index = list(self.all_sections.keys()).index(self.current_page)
+                    new_index = (current_index - 1) % len(self.all_sections)
+                    self.current_page = list(self.all_sections.keys())[new_index]
 
                 elif ch == 'right':
-                    current_index = list(self.sections.keys()).index(self.current_page)
-                    new_index = (current_index + 1) % len(self.sections)
-                    self.current_page = list(self.sections.keys())[new_index]
+                    current_index = list(self.all_sections.keys()).index(self.current_page)
+                    new_index = (current_index + 1) % len(self.all_sections)
+                    self.current_page = list(self.all_sections.keys())[new_index]
 
                 elif ch == 'up':
                     # 上箭头暂时不用

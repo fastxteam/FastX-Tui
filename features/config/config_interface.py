@@ -17,9 +17,10 @@ from config.config_manager import ConfigManager
 class ConfigInterface:
     """配置界面管理器"""
 
-    def __init__(self, console: Console, config_manager: ConfigManager):
+    def __init__(self, console: Console, config_manager: ConfigManager, plugin_manager=None):
         self.console = console
         self.config_manager = config_manager
+        self.plugin_manager = plugin_manager
         # 面板宽度
         self.panel_width = 120
 
@@ -103,9 +104,10 @@ class ConfigInterface:
             ("1", "查看当前配置"),
             ("2", "更换主题"),
             ("3", "高级设置"),
-            ("4", "重置配置"),
-            ("5", "导出配置"),
-            ("6", "导入配置")
+            ("4", "插件配置"),
+            ("5", "重置配置"),
+            ("6", "导出配置"),
+            ("7", "导入配置")
         ]
 
         # 直接添加所有命令到表格
@@ -162,10 +164,12 @@ class ConfigInterface:
         elif choice == '3':
             self._show_advanced_settings()
         elif choice == '4':
-            self._reset_config()
+            self._show_plugin_config()
         elif choice == '5':
-            self._export_config()
+            self._reset_config()
         elif choice == '6':
+            self._export_config()
+        elif choice == '7':
             self._import_config()
 
         if choice != '0' and choice != 'q':
@@ -525,6 +529,234 @@ class ConfigInterface:
         else:
             self._show_message("文件名不能为空", "red")
 
+    def _show_plugin_config(self):
+        """显示插件配置界面"""
+        if not self.plugin_manager:
+            self._show_message("插件管理器未初始化", "red")
+            return
+        
+        plugins = self.plugin_manager.list_plugins()
+        plugin_list = [plugin for plugin in plugins if plugin["loaded"]]
+        
+        if not plugin_list:
+            self._show_message("没有加载的插件", "red")
+            return
+        
+        while True:
+            # 显示插件列表供选择
+            self.console.clear()
+            title_panel = Panel(
+                Text("插件配置", style="bold cyan"),
+                box=box.SIMPLE,
+                border_style="cyan",
+                padding=(0, 0),
+                width=self.panel_width
+            )
+            self.console.print(title_panel)
+            self.console.print()
+            
+            # 创建插件选择表格
+            plugin_table = Table(
+                show_header=True,
+                header_style="bold magenta",
+                box=box.SIMPLE,
+                show_edge=True,
+                width=self.panel_width - 2,
+                padding=(0, 1)
+            )
+            
+            plugin_table.add_column("编号", style="bold cyan", width=8)
+            plugin_table.add_column("插件名称", style="white", width=40)
+            plugin_table.add_column("版本", style="dim", width=15)
+            plugin_table.add_column("描述", style="dim", width=57)
+            
+            for i, plugin_info in enumerate(plugin_list, 1):
+                plugin_table.add_row(
+                    str(i),
+                    plugin_info["display_name"],
+                    plugin_info["version"],
+                    plugin_info["description"]
+                )
+            
+            plugin_panel = Panel(
+                plugin_table,
+                subtitle="0: 返回",
+                subtitle_align="left",
+                border_style="blue",
+                box=box.ROUNDED,
+                padding=(0, 0),
+                width=self.panel_width
+            )
+            
+            self.console.print(plugin_panel)
+            self.console.print()
+            
+            self.console.print("请选择要配置的插件编号: ", style="bold green", end="")
+            
+            # 获取用户选择
+            choice = input().strip()
+            
+            if choice == '0':
+                return
+            
+            try:
+                plugin_index = int(choice) - 1
+                if 0 <= plugin_index < len(plugin_list):
+                    # 获取插件名称和实例
+                    plugin_info = plugin_list[plugin_index]
+                    plugin_name = plugin_info["name"]
+                    plugin = self.plugin_manager.get_plugin(plugin_name)
+                    
+                    if plugin:
+                        # 显示插件配置
+                        self._show_single_plugin_config(plugin, plugin_info)
+                else:
+                    self._show_message("无效的选择", "red")
+                    self._wait_for_keypress()
+            except ValueError:
+                self._show_message("无效的输入", "red")
+                self._wait_for_keypress()
+    
+    def _show_single_plugin_config(self, plugin, plugin_info):
+        """显示单个插件的配置"""
+        # 获取插件配置模式
+        config_schema = plugin.get_config_schema()
+        
+        # 获取插件配置
+        plugin_config = self.config_manager.get_config(f"plugin_{plugin_info['name']}", {})
+        
+        while True:
+            # 显示插件配置
+            self.console.clear()
+            title_panel = Panel(
+                Text(f"插件配置 - {plugin_info['display_name']}", style="bold cyan"),
+                box=box.SIMPLE,
+                border_style="cyan",
+                padding=(0, 0),
+                width=self.panel_width
+            )
+            self.console.print(title_panel)
+            self.console.print()
+            
+            # 创建配置表格
+            config_table = Table(
+                show_header=True,
+                header_style="bold magenta",
+                box=box.SIMPLE,
+                show_edge=True,
+                width=self.panel_width - 2,
+                padding=(0, 1)
+            )
+            
+            config_table.add_column("编号", style="bold cyan", width=8)
+            config_table.add_column("配置项", style="white", width=25)
+            config_table.add_column("当前值", style="yellow", width=25)
+            config_table.add_column("说明", style="dim", width=62)
+            
+            config_items = list(config_schema.items())
+            for i, (config_name, config_info) in enumerate(config_items, 1):
+                current_value = plugin_config.get(config_name, config_info.get("default"))
+                config_table.add_row(
+                    str(i),
+                    config_name,
+                    str(current_value),
+                    config_info.get("description", "")
+                )
+            
+            config_panel = Panel(
+                config_table,
+                subtitle="0: 返回 | 输入配置项编号修改值",
+                subtitle_align="left",
+                border_style="blue",
+                box=box.ROUNDED,
+                padding=(0, 0),
+                width=self.panel_width
+            )
+            
+            self.console.print(config_panel)
+            self.console.print()
+            
+            self.console.print("请选择操作: ", style="bold green", end="")
+            
+            # 获取用户选择
+            choice = input().strip()
+            
+            if choice == '0':
+                return
+            
+            try:
+                config_index = int(choice) - 1
+                if 0 <= config_index < len(config_items):
+                    # 获取配置项信息
+                    config_name, config_info = config_items[config_index]
+                    current_value = plugin_config.get(config_name, config_info.get("default"))
+                    
+                    # 显示修改界面
+                    self.console.clear()
+                    title_panel = Panel(
+                        Text(f"修改配置 - {config_name}", style="bold cyan"),
+                        box=box.SIMPLE,
+                        border_style="cyan",
+                        padding=(0, 0),
+                        width=self.panel_width
+                    )
+                    self.console.print(title_panel)
+                    self.console.print()
+                    
+                    self.console.print(f"配置项: {config_name}")
+                    self.console.print(f"当前值: {current_value}")
+                    self.console.print(f"说明: {config_info.get('description', '')}")
+                    
+                    if "choices" in config_info:
+                        self.console.print(f"可选值: {', '.join(map(str, config_info['choices']))}")
+                    
+                    self.console.print()
+                    self.console.print("请输入新值 (直接回车保持当前值): ", style="bold green", end="")
+                    
+                    new_value = input().strip()
+                    
+                    if new_value:
+                        # 根据配置类型转换值
+                        config_type = config_info.get("type", "string")
+                        
+                        try:
+                            if config_type == "boolean":
+                                # 处理布尔值
+                                if new_value.lower() in ["true", "1", "yes", "y"]:
+                                    parsed_value = True
+                                elif new_value.lower() in ["false", "0", "no", "n"]:
+                                    parsed_value = False
+                                else:
+                                    raise ValueError("无效的布尔值")
+                            elif config_type == "integer":
+                                parsed_value = int(new_value)
+                            elif config_type == "float":
+                                parsed_value = float(new_value)
+                            else:
+                                parsed_value = new_value
+                            
+                            # 验证可选值
+                            if "choices" in config_info and parsed_value not in config_info["choices"]:
+                                raise ValueError(f"值必须是以下之一: {', '.join(map(str, config_info['choices']))}")
+                            
+                            # 更新配置
+                            plugin_config[config_name] = parsed_value
+                            self.config_manager.set_config(f"plugin_{plugin_info['name']}", plugin_config)
+                            
+                            self._show_message(f"配置项 {config_name} 已更新为: {parsed_value}", "green")
+                            self._wait_for_keypress()
+                        except ValueError as e:
+                            self._show_message(f"无效的输入: {e}", "red")
+                            self._wait_for_keypress()
+                else:
+                    self._show_message("无效的选择", "red")
+                    self._wait_for_keypress()
+            except ValueError:
+                self._show_message("无效的输入", "red")
+                self._wait_for_keypress()
+    
+
+    
     def _show_message(self, message: str, color: str = "white"):
         """显示消息面板"""
         message_panel = Panel(

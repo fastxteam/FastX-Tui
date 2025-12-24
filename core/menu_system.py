@@ -212,9 +212,36 @@ class MenuSystem:
         ))
 
     def register_item(self, item: Union[MenuItem, MenuNode]):
-        """注册菜单项"""
+        """注册菜单项
+        
+        注意：每个插件只能注册一个主菜单（MenuType.MAIN）。
+        """
         self.items[item.id] = item
         return item
+    
+    def create_main_menu(self, menu_id: str, name: str, description: str = "", icon: str = "🏠") -> MenuNode:
+        """创建主菜单
+        
+        注意：每个插件只能注册一个主菜单。
+        
+        Args:
+            menu_id: 菜单ID
+            name: 菜单名称
+            description: 菜单描述
+            icon: 菜单图标
+            
+        Returns:
+            MenuNode: 创建的主菜单节点
+        """
+        main_menu = MenuNode(
+            id=menu_id,
+            name=name,
+            description=description,
+            menu_type=MenuType.MAIN,
+            icon=icon
+        )
+        self.register_item(main_menu)
+        return main_menu
 
     def get_item_by_id(self, item_id: str) -> Optional[Union[MenuItem, MenuNode]]:
         """根据ID获取菜单项"""
