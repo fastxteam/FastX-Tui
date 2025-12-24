@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from .menu_system import MenuSystem, ActionItem, CommandType
 from .logger import get_logger
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+from models.plugin_schema import PluginInfoSchema
 
 @dataclass
 class PluginInfo:
@@ -32,10 +33,22 @@ class PluginInfo:
     downloads: int = 0  # 下载次数
 
 class Plugin(ABC):
-    """插件基类"""
+    """插件基类
+    
+    所有FastX-Tui插件必须继承自此类并实现所有抽象方法。
+    
+    属性：
+    - logger: 插件日志器
+    - plugin_path: 插件目录路径（由PluginManager设置）
+    - main_menus_registered: 跟踪主菜单注册数量，用于限制每个插件只能注册一个主菜单
+    - main_menu_id: 插件注册的主菜单ID，用于跟踪
+    """
     
     def __init__(self):
-        """初始化插件，设置日志器"""
+        """初始化插件，设置日志器
+        
+        初始化插件的基本属性，包括日志器、插件路径、主菜单注册数量等。
+        """
         # 获取插件名称作为日志器名称
         self.logger = get_logger(self.__class__.__name__)
         # 插件目录路径，在加载时由PluginManager设置
@@ -47,36 +60,71 @@ class Plugin(ABC):
     
     @abstractmethod
     def get_info(self) -> PluginInfo:
-        """获取插件信息"""
+        """获取插件信息
+        
+        必须实现此方法，返回插件的详细信息，包括名称、版本、作者、描述等。
+        
+        Returns:
+            PluginInfo: 插件信息对象，包含插件的详细信息
+        """
         pass
     
     @abstractmethod
     def register(self, menu_system: MenuSystem):
-        """注册插件到菜单系统"""
+        """注册插件到菜单系统
+        
+        必须实现此方法，用于将插件的命令和菜单注册到菜单系统中。
+        
+        Args:
+            menu_system: 菜单系统实例，用于注册插件的命令和菜单
+        """
         pass
     
     @abstractmethod
     def initialize(self):
-        """初始化插件"""
+        """初始化插件
+        
+        必须实现此方法，用于初始化插件的资源、连接数据库、加载配置等。
+        """
         pass
     
     @abstractmethod
     def cleanup(self):
-        """清理插件资源"""
+        """清理插件资源
+        
+        必须实现此方法，用于清理插件使用的资源，如关闭连接、释放内存等。
+        """
         pass
     
     def get_binary_path(self) -> str:
-        """获取插件二进制文件路径（可选实现）"""
+        """获取插件二进制文件路径
+        
+        可选实现此方法，用于返回插件二进制文件的路径。
+        
+        Returns:
+            str: 插件二进制文件路径
+        """
         return ""
     
     def get_resource_path(self, resource_name: str) -> str:
-        """获取插件资源文件路径"""
+        """获取插件资源文件路径
+        
+        获取插件资源文件的完整路径，资源文件通常存放在插件的resources目录下。
+        
+        Args:
+            resource_name: 资源文件名称
+        
+        Returns:
+            str: 资源文件的完整路径
+        """
         if self.plugin_path:
             return os.path.join(self.plugin_path, "resources", resource_name)
         return resource_name
     
     def get_manual(self) -> str:
         """获取插件手册，返回Markdown格式的帮助内容
+        
+        可选实现此方法，返回插件的帮助文档，使用Markdown格式编写。
         
         Returns:
             str: Markdown格式的插件手册
@@ -85,6 +133,8 @@ class Plugin(ABC):
     
     def get_config_schema(self) -> Dict[str, Any]:
         """获取插件配置模式，定义插件的配置项及约束
+        
+        可选实现此方法，返回插件的配置项模式，包含配置名、类型、默认值、说明、可选值等。
         
         Returns:
             Dict[str, Any]: 配置项模式，包含配置名、类型、默认值、说明、可选值等
@@ -101,9 +151,12 @@ class Plugin(ABC):
     def get_config(self, config_name: str, default: Any = None) -> Any:
         """获取插件配置值
         
+        获取插件的配置值，如果配置不存在则返回默认值。
+        此方法将在PluginManager中被重写，使用配置管理器获取配置。
+        
         Args:
             config_name: 配置项名称
-            default: 默认值
+            default: 默认值，配置不存在时返回
             
         Returns:
             Any: 配置值
@@ -114,6 +167,8 @@ class Plugin(ABC):
     def set_config(self, config_name: str, value: Any):
         """设置插件配置值
         
+        设置插件的配置值，此方法将在PluginManager中被重写，使用配置管理器设置配置。
+        
         Args:
             config_name: 配置项名称
             value: 配置值
@@ -122,23 +177,63 @@ class Plugin(ABC):
         pass
     
     def log_debug(self, msg: str, *args, **kwargs):
-        """记录调试日志"""
+        """记录调试日志
+        
+        记录调试级别的日志信息，通常用于开发和调试阶段。
+        
+        Args:
+            msg: 日志消息
+            *args: 消息格式化参数
+            **kwargs: 额外的日志参数
+        """
         self.logger.debug(msg, *args, **kwargs)
     
     def log_info(self, msg: str, *args, **kwargs):
-        """记录信息日志"""
+        """记录信息日志
+        
+        记录信息级别的日志信息，通常用于正常的运行状态。
+        
+        Args:
+            msg: 日志消息
+            *args: 消息格式化参数
+            **kwargs: 额外的日志参数
+        """
         self.logger.info(msg, *args, **kwargs)
     
     def log_warning(self, msg: str, *args, **kwargs):
-        """记录警告日志"""
+        """记录警告日志
+        
+        记录警告级别的日志信息，通常用于可能的问题或异常情况。
+        
+        Args:
+            msg: 日志消息
+            *args: 消息格式化参数
+            **kwargs: 额外的日志参数
+        """
         self.logger.warning(msg, *args, **kwargs)
     
     def log_error(self, msg: str, *args, **kwargs):
-        """记录错误日志"""
+        """记录错误日志
+        
+        记录错误级别的日志信息，通常用于错误和异常情况。
+        
+        Args:
+            msg: 日志消息
+            *args: 消息格式化参数
+            **kwargs: 额外的日志参数
+        """
         self.logger.error(msg, *args, **kwargs)
     
     def log_critical(self, msg: str, *args, **kwargs):
-        """记录严重错误日志"""
+        """记录严重错误日志
+        
+        记录严重错误级别的日志信息，通常用于严重的系统错误和崩溃情况。
+        
+        Args:
+            msg: 日志消息
+            *args: 消息格式化参数
+            **kwargs: 额外的日志参数
+        """
         self.logger.critical(msg, *args, **kwargs)
 
 class PluginManager:
@@ -283,6 +378,28 @@ class PluginManager:
             plugin_instance.set_config = plugin_set_config
             
             plugin_info = plugin_instance.get_info()
+            
+            # 使用PluginInfoSchema验证插件信息
+            try:
+                # 将PluginInfo转换为字典
+                plugin_info_dict = {
+                    "name": plugin_info.name,
+                    "version": plugin_info.version,
+                    "author": plugin_info.author,
+                    "description": plugin_info.description,
+                    "homepage": plugin_info.homepage,
+                    "repository": plugin_info.repository,
+                    "license": plugin_info.license,
+                    "dependencies": plugin_info.dependencies,
+                    "category": plugin_info.category
+                }
+                
+                # 使用PluginInfoSchema验证
+                schema = PluginInfoSchema(**plugin_info_dict)
+                self.logger.info(f"插件信息验证通过: {plugin_info.name} v{plugin_info.version}")
+            except Exception as e:
+                self.logger.error(f"插件 {plugin_name} 信息验证失败: {str(e)}")
+                return None
             
             if not plugin_info.enabled:
                 self.logger.info(f"插件 {plugin_name} 已被禁用")
