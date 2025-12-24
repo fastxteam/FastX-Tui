@@ -1,0 +1,29 @@
+{
+  "type": "object",
+  "title": "{{ cookiecutter.plugin_display_name }} 配置",
+  "description": "{{ cookiecutter.plugin_display_name }} 插件的配置项",
+  "properties": {
+    "example_config": {
+      "type": "string",
+      "title": "示例配置项",
+      "description": "这是一个示例配置项，用于演示插件配置功能",
+      "default": "default_value",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "enabled": {
+      "type": "boolean",
+      "title": "启用插件",
+      "description": "是否启用 {{ cookiecutter.plugin_display_name }} 插件",
+      "default": true
+    },
+    "log_level": {
+      "type": "string",
+      "title": "日志级别",
+      "description": "插件的日志级别",
+      "default": "info",
+      "enum": ["debug", "info", "warning", "error", "critical"]
+    }
+  },
+  "required": ["enabled"]
+}
