@@ -11,7 +11,7 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
 
-from config.config_manager import ConfigManager
+from core.config_manager import ConfigManager
 
 
 class ConfigInterface:

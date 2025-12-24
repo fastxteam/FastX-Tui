@@ -8,12 +8,42 @@ version = "0.1.47"
 description = "FastX TUI - 统一视图架构版本"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [ "loguru>=0.7.3", "psutil>=5.9.0", "pyyaml>=6.0", "rich>=13.0.0", "setuptools>=80.9.0", "requests>=2.31.0", "toml>=0.10.2", "cookiecutter>=2.6.0",]
+dependencies = [
+ "loguru>=0.7.3",
+ "psutil>=5.9.0",
+ "pyyaml>=6.0",
+ "rich>=13.0.0",
+ "setuptools>=80.9.0",
+ "requests>=2.31.0",
+ "toml>=0.10.2",
+ "cookiecutter>=2.6.0",
+ "pydantic>=2.0.0",
+ "pydantic-settings>=2.0.0",
+ "typer>=0.20.1",
+ "validators>=0.35.0",
+]
 
 [project.scripts]
 fastx-tui = "main:main"
+fastx-tui-ruff = "tools.ruff_commands:app"
 
 [tool.setuptools.packages.find]
 where = [ ".",]
-include = [ "core", "config", "features", "locales", "plugins",]
+include = [ "core", "config", "features", "locales", "plugins", "tools",]
 exclude = [ "*.tests", "*.tests.*", "tests.*", "tests",]
+
+[project.optional-dependencies]
+dev = [ "ruff>=0.5.0",]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+exclude = [ "{{cookiecutter.plugin_name}}", ".venv", "__pycache__", "dist", "*.egg-info", "tests"]
+
+[tool.ruff.lint]
+select = [ "E", "F", "W", "I", "C90", "N", "UP", "YTT", "T20",]
+ignore = [ "E501",]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

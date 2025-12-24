@@ -14,7 +14,7 @@ from rich.tree import Tree
 
 from core.plugin_manager import PluginManager, PluginRepository
 from core.menu_system import MenuSystem, MenuNode
-from config.config_manager import ConfigManager
+from core.config_manager import ConfigManager
 
 
 class PluginInterface:

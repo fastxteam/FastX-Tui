@@ -8,6 +8,7 @@ from .view_manager import ViewManager
 from .plugin_manager import PluginManager
 from .menu_system import MenuSystem
 from .update_manager import UpdateManager
+from .config_manager import ConfigManager
 from .logger import logger
 
 __all__ = [
@@ -16,5 +17,6 @@ __all__ = [
     "PluginManager",
     "MenuSystem",
     "UpdateManager",
+    "ConfigManager",
     "logger"
 ]

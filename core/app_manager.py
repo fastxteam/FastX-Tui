@@ -17,7 +17,7 @@ from core.view_manager import ViewManager, ViewRoute
 from core.update_manager import UpdateManager
 from core.network_tools import NetworkToolsPlugin
 from core.version import FULL_VERSION, VERSION
-from config.config_manager import ConfigManager
+from core.config_manager import ConfigManager
 from features.search.search_interface import SearchInterface
 from features.help.help_interface import HelpInterface
 from features.config.config_interface import ConfigInterface

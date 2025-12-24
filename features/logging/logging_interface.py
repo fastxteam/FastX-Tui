@@ -19,7 +19,7 @@ from core.logger import (
     get_current_log_level,
     get_available_log_levels
 )
-from config.config_manager import ConfigManager
+from core.config_manager import ConfigManager
 
 
 class LoggingInterface:

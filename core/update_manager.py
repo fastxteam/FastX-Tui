@@ -13,7 +13,7 @@ from typing import Dict, Optional, Tuple, Any
 
 from core.logger import get_logger
 from core.network_tools import NetworkToolsPlugin
-from config.config_manager import ConfigManager
+from core.config_manager import ConfigManager
 
 logger = get_logger(__name__)
 
