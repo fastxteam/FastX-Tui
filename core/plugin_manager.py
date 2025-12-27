@@ -540,6 +540,23 @@ class PluginManager:
                 # 检查是否注册了多个主菜单
                 if plugin.main_menus_registered > 1:
                     self.logger.warning(f"插件 {plugin_name} 注册了 {plugin.main_menus_registered} 个主菜单，根据规范只能注册一个主菜单")
+                    # 只保留第一个注册的主菜单，移除其他的
+                    if hasattr(menu_system, 'items'):
+                        # 收集所有可能是该插件注册的主菜单
+                        plugin_menus = []
+                        for item_id, item in menu_system.items.items():
+                            if hasattr(item, 'menu_type') and getattr(item, 'menu_type', None) == 'main':
+                                plugin_menus.append(item_id)
+                        
+                        # 如果找到多个主菜单，只保留第一个
+                        if len(plugin_menus) > 1:
+                            for menu_id in plugin_menus[1:]:
+                                if menu_id in menu_system.items:
+                                    del menu_system.items[menu_id]
+                                # 从主菜单中移除
+                                main_menu = menu_system.get_item_by_id("main_menu")
+                                if hasattr(main_menu, 'items') and menu_id in main_menu.items:
+                                    main_menu.items.remove(menu_id)
             except Exception as e:
                 self.logger.error(f"注册插件 {plugin_name} 失败: {str(e)}")
     

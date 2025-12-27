@@ -157,7 +157,8 @@ class AppManager:
             name="主菜单",
             description="FastX-Tui 主菜单",
             menu_type=MenuType.MAIN,
-            icon="🏠"
+            icon="🏠",
+            is_system=True  # 系统内置菜单
         )
         
         # 创建平台工具主菜单（整合系统工具、文件工具、Python工具）
@@ -166,7 +167,8 @@ class AppManager:
             name="平台工具",
             description="平台提供的通用工具集",
             menu_type=MenuType.SUB,
-            icon="🛠️"
+            icon="🛠️",
+            is_system=True  # 系统内置菜单
         )
         
         # 系统工具菜单
@@ -175,7 +177,8 @@ class AppManager:
             name="系统工具",
             description="系统信息和管理工具",
             menu_type=MenuType.SUB,
-            icon="🖥️"
+            icon="🖥️",
+            is_system=True  # 系统内置菜单
         )
         
         # 文件工具菜单
@@ -184,7 +187,8 @@ class AppManager:
             name="文件工具",
             description="文件管理和操作工具",
             menu_type=MenuType.SUB,
-            icon="📁"
+            icon="📁",
+            is_system=True  # 系统内置菜单
         )
         
         # Python工具菜单
@@ -193,7 +197,8 @@ class AppManager:
             name="Python工具",
             description="Python开发和运行时工具",
             menu_type=MenuType.SUB,
-            icon="🐍"
+            icon="🐍",
+            is_system=True  # 系统内置菜单
         )
         
         # 注册菜单
@@ -325,9 +330,6 @@ class AppManager:
         
         # 插件菜单将在_rebuild_plugin_menu中根据实际插件命令情况添加
         # 插件可以直接注册菜单到主菜单
-        
-        # 添加设置菜单到主菜单
-        main_menu.add_item("settings_menu")
         
         # 设置当前菜单
         self.menu_system.current_menu = main_menu
@@ -972,7 +974,7 @@ class AppManager:
             # 创建结果Panel
             result_panel = Panel(
                 output,
-                title="> {item.name} | 结果面板",
+                title=f"> {item.name} | 结果面板",
                 title_align="center",
                 border_style="green",
                 box=ROUNDED,

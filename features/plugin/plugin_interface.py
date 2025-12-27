@@ -519,40 +519,45 @@ class PluginInterface:
         )
         self.console.print(title_panel)
 
-        # # 清空所有插件相关的菜单和命令 | 清理现有插件
+        # 清空所有插件相关的菜单和命令
         self.plugin_manager.cleanup_all()
-
-        # 先记录要删除的插件菜单项
-        plugin_items_to_remove = []
 
         # 获取主菜单
         main_menu = self.menu_system.get_item_by_id("main_menu")
         if isinstance(main_menu, MenuNode):
-            # 遍历主菜单中的所有菜单项
+            # 保存系统内置菜单项和插件主菜单
+            new_main_menu_items = []
             for item_id in main_menu.items[:]:
-                # 跳过系统内置菜单
-                if item_id not in ["platform_tools_menu", "settings_menu"]:
-                    # 检查是否是插件添加的菜单项
-                    menu_item = self.menu_system.get_item_by_id(item_id)
-                    if menu_item and isinstance(menu_item, MenuNode):
-                        # 检查菜单是否是插件创建的
-                        if "plugin" in item_id.lower() or "example" in item_id.lower():
-                            plugin_items_to_remove.append(item_id)
+                menu_item = self.menu_system.get_item_by_id(item_id)
+                if menu_item:
+                    # 保留系统内置菜单项
+                    if getattr(menu_item, 'is_system', False):
+                        new_main_menu_items.append(item_id)
+                    else:
+                        # 检查是否是插件主菜单，保留插件主菜单
+                        plugin_name = item_id.replace('_menu', '')
+                        if plugin_name in self.plugin_manager.all_plugins:
+                            new_main_menu_items.append(item_id)
+            main_menu.items = new_main_menu_items
 
-        # 从主菜单中移除插件菜单项
-        if isinstance(main_menu, MenuNode):
-            for item_id in plugin_items_to_remove:
-                main_menu.remove_item(item_id)
-
-        # 清空插件相关的菜单项
-        plugin_items_to_clean = []
+        # 清空所有非系统内置的菜单项和非插件主菜单
+        items_to_remove = []
         for item_id, item in self.menu_system.items.items():
-            # 移除插件相关的菜单和命令
-            if "plugin" in item_id.lower() or "example" in item_id.lower():
-                plugin_items_to_clean.append(item_id)
-
-        # 从菜单系统中移除插件菜单项
-        for item_id in plugin_items_to_clean:
+            # 保留系统内置项
+            if getattr(item, 'is_system', False):
+                continue
+            
+            # 保留插件主菜单
+            if isinstance(item, MenuNode) and item_id.endswith('_menu'):
+                plugin_name = item_id.replace('_menu', '')
+                if plugin_name in self.plugin_manager.all_plugins:
+                    continue
+            
+            # 其他项都移除
+            items_to_remove.append(item_id)
+        
+        # 从菜单系统中移除所有非系统菜单项和非插件主菜单
+        for item_id in items_to_remove:
             self.menu_system.remove_item(item_id)
 
         # 重新加载插件
@@ -573,21 +578,6 @@ class PluginInterface:
         """重建插件菜单，与AppManager保持一致的逻辑"""
         from core.menu_system import MenuNode, MenuType, MenuItem, ActionItem
 
-        # 获取插件菜单
-        plugins_menu = self.menu_system.get_item_by_id("plugins_menu")
-        if not isinstance(plugins_menu, MenuNode):
-            # 如果插件菜单不存在，创建它
-            plugins_menu = MenuNode(
-                id="plugins_menu",
-                name="插件命令",
-                description="所有已安装插件的命令",
-                menu_type=MenuType.SUB,
-            )
-            self.menu_system.register_item(plugins_menu)
-
-        # 清空现有插件菜单项
-        plugins_menu.items.clear()
-
         # 获取主菜单
         main_menu = self.menu_system.get_item_by_id("main_menu")
         if not isinstance(main_menu, MenuNode):
@@ -597,6 +587,10 @@ class PluginInterface:
         if "plugins_menu" in main_menu.items:
             main_menu.items.remove("plugins_menu")
 
+        # 检查并移除plugins_menu菜单
+        if "plugins_menu" in self.menu_system.items:
+            del self.menu_system.items["plugins_menu"]
+
         # 自动统计所有插件命令
         plugin_items_added = False
 
@@ -605,50 +599,31 @@ class PluginInterface:
 
         for item_id, item in self.menu_system.items.items():
             # 跳过系统内置项目和菜单
-            if item_id not in ["main_menu", "platform_tools_menu", "system_tools_menu", "file_tools_menu",
-                               "python_tools_menu", "settings_menu", "show_config", "plugin_manager",
-                               "clear_screen", "show_help", "exit_app", "update_app", "plugins_menu"]:
-                # 检查是否是插件生成的命令或菜单
-                if isinstance(item, (MenuItem, ActionItem, MenuNode)):
-                    if isinstance(item, MenuNode):
-                        # 是插件生成的菜单，检查是否直接注册到了主菜单
-                        is_in_main_menu = item_id in main_menu.items
+            if getattr(item, 'is_system', False):
+                continue
+                
+            # 检查是否是插件生成的命令或菜单
+            if isinstance(item, (MenuItem, ActionItem, MenuNode)):
+                if isinstance(item, MenuNode):
+                    # 是插件生成的菜单，检查是否直接注册到了主菜单
+                    is_in_main_menu = item_id in main_menu.items
 
-                        if is_in_main_menu:
-                            # 保留在主菜单中，因为有些插件可能需要直接添加菜单到主菜单
-                            # 但我们可以在禁用插件时清理这些菜单
-                            plugin_items_added = True
-                    else:
-                        # 是插件命令，检查是否直接注册到了主菜单
-                        is_in_main_menu = item_id in main_menu.items
+                    if is_in_main_menu:
+                        # 保留在主菜单中，因为有些插件可能需要直接添加菜单到主菜单
+                        # 但我们可以在禁用插件时清理这些菜单
+                        plugin_items_added = True
+                else:
+                    # 是插件命令，检查是否直接注册到了主菜单
+                    is_in_main_menu = item_id in main_menu.items
 
-                        # 如果是直接注册到主菜单的命令，添加到插件菜单
-                        if is_in_main_menu:
-                            plugins_menu.add_item(item_id)
-                            plugin_items_added = True
-                            # 收集要从主菜单移除的命令
-                            commands_to_remove.append(item_id)
+                    # 如果是直接注册到主菜单的命令，从主菜单移除
+                    if is_in_main_menu:
+                        commands_to_remove.append(item_id)
 
         # 从主菜单中移除插件命令
         for item_id in commands_to_remove:
             if item_id in main_menu.items:
                 main_menu.items.remove(item_id)
-
-        # 如果有插件命令，确保插件菜单始终位于主菜单的第二位
-        if plugin_items_added:
-            # 确保主菜单至少有平台工具菜单
-            if "platform_tools_menu" not in main_menu.items:
-                main_menu.add_item("platform_tools_menu")
-
-            # 移除插件菜单（如果已存在）
-            if "plugins_menu" in main_menu.items:
-                main_menu.items.remove("plugins_menu")
-
-            # 插入插件菜单到第二位
-            if len(main_menu.items) >= 2:
-                main_menu.items.insert(1, "plugins_menu")
-            else:
-                main_menu.items.append("plugins_menu")
 
     def _refresh_plugins(self):
         """刷新插件列表"""

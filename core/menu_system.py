@@ -33,6 +33,7 @@ class MenuItem:
     enabled: bool = True
     icon: str = "▶"
     category: str = "general"
+    is_system: bool = False  # 是否为系统内置菜单项
 
 
 @dataclass
@@ -190,7 +191,8 @@ class MenuSystem:
             description="清除屏幕内容",
             icon="🧹",
             command_type=CommandType.SHELL,
-            command="cls" if sys.platform == 'win32' else "clear"
+            command="cls" if sys.platform == 'win32' else "clear",
+            is_system=True  # 系统内置项
         ))
 
         # 帮助
@@ -198,7 +200,8 @@ class MenuSystem:
             id="show_help",
             name="帮助",
             description="显示帮助信息",
-            icon="📚"
+            icon="📚",
+            is_system=True  # 系统内置项
         ))
 
         # 退出
@@ -208,7 +211,8 @@ class MenuSystem:
             description="安全退出程序",
             icon="⚡",
             command_type=CommandType.SHELL,
-            command="echo 正在退出..."
+            command="echo 正在退出...",
+            is_system=True  # 系统内置项
         ))
 
     def register_item(self, item: Union[MenuItem, MenuNode]):
@@ -219,7 +223,7 @@ class MenuSystem:
         self.items[item.id] = item
         return item
     
-    def create_main_menu(self, menu_id: str, name: str, description: str = "", icon: str = "🏠") -> MenuNode:
+    def create_main_menu(self, menu_id: str, name: str, description: str = "", icon: str = "🏠", is_system: bool = False) -> MenuNode:
         """创建主菜单
         
         注意：每个插件只能注册一个主菜单。
@@ -229,6 +233,7 @@ class MenuSystem:
             name: 菜单名称
             description: 菜单描述
             icon: 菜单图标
+            is_system: 是否为系统内置菜单
             
         Returns:
             MenuNode: 创建的主菜单节点
@@ -238,7 +243,8 @@ class MenuSystem:
             name=name,
             description=description,
             menu_type=MenuType.MAIN,
-            icon=icon
+            icon=icon,
+            is_system=is_system
         )
         self.register_item(main_menu)
         return main_menu
@@ -287,9 +293,16 @@ class MenuSystem:
         except Exception as e:
             return f"执行过程中发生错误:\n\n[red]{str(e)}[/red]"
 
-    def create_submenu(self, menu_id: str, name: str, description: str = "", icon: str = "📁") -> MenuNode:
+    def create_submenu(self, menu_id: str, name: str, description: str = "", icon: str = "📁", is_system: bool = False) -> MenuNode:
         """创建子菜单"""
-        submenu = MenuNode(id=menu_id, name=name, description=description, menu_type=MenuType.SUB, icon=icon)
+        submenu = MenuNode(
+            id=menu_id, 
+            name=name, 
+            description=description, 
+            menu_type=MenuType.SUB, 
+            icon=icon,
+            is_system=is_system
+        )
         self.register_item(submenu)
         return submenu
 
