@@ -23,11 +23,19 @@ class VenvManager:
         Args:
             venv_base_dir: 虚拟环境的基础目录
         """
-        self.venv_base_dir = venv_base_dir
+        # 获取EXE所在目录或项目根目录
+        if getattr(sys, 'frozen', False):
+            # 打包后的EXE环境
+            app_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            # 开发环境，获取项目根目录（假设core目录在项目根目录下）
+            app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # 将虚拟环境基础目录设置为EXE所在目录或项目根目录下的目录
+        self.venv_base_dir = os.path.join(app_dir, venv_base_dir)
         self.logger = get_logger("VenvManager")
         
         # 创建虚拟环境基础目录
-        os.makedirs(venv_base_dir, exist_ok=True)
+        os.makedirs(self.venv_base_dir, exist_ok=True)
         
         # 记录已创建的虚拟环境
         self.created_venvs: Dict[str, str] = {}  # plugin_name -> venv_path

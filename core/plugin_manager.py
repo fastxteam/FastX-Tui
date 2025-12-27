@@ -241,7 +241,15 @@ class PluginManager:
     """插件管理器"""
     
     def __init__(self, plugin_dir: str = "plugins", config_manager=None):
-        self.plugin_dir = plugin_dir
+        # 获取EXE所在目录或项目根目录
+        if getattr(sys, 'frozen', False):
+            # 打包后的EXE环境
+            app_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            # 开发环境，获取项目根目录（假设core目录在项目根目录下）
+            app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # 将插件目录设置为EXE所在目录或项目根目录下的子目录
+        self.plugin_dir = os.path.join(app_dir, plugin_dir)
         self.plugins: Dict[str, Plugin] = {}  # 已加载的插件
         self.loaded_plugins: List[str] = []   # 已加载插件名称列表
         self.all_plugins: List[str] = []      # 所有发现的插件，包括未加载的
@@ -251,7 +259,7 @@ class PluginManager:
         self.logger = get_logger("PluginManager")
         
         # 创建插件目录
-        os.makedirs(plugin_dir, exist_ok=True)
+        os.makedirs(self.plugin_dir, exist_ok=True)
         
         # 配置管理器，用于持久化插件配置
         self.config_manager = config_manager

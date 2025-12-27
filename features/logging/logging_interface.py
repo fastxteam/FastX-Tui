@@ -28,8 +28,15 @@ class LoggingInterface:
     def __init__(self, console: Console, config_manager: ConfigManager):
         self.console = console
         self.config_manager = config_manager
-        # 使用绝对路径确保日志文件路径正确
-        self.log_file = os.path.join(os.getcwd(), "logs", "fastx-tui.log")
+        # 获取EXE所在目录或项目根目录
+        if getattr(sys, 'frozen', False):
+            # 打包后的EXE环境
+            app_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            # 开发环境，获取项目根目录（假设features目录在项目根目录下）
+            app_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        # 使用绝对路径确保日志文件路径正确，基于EXE所在目录或项目根目录
+        self.log_file = os.path.join(app_dir, "logs", "fastx-tui.log")
         self.page_size = 500
         self.current_page = 1
         self.filter_level = None

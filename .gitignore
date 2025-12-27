@@ -9,3 +9,5 @@ test*.py
 *.egg-info/
 *.sqlite
 *.db
+/build/
+/fastx-tui.spec

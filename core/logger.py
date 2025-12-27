@@ -25,8 +25,13 @@ class Logger:
             enqueue=True  # 异步日志
         )
         
-        # 获取应用程序所在目录
-        app_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        # 获取EXE所在目录或项目根目录
+        if getattr(sys, 'frozen', False):
+            # 打包后的EXE环境
+            app_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            # 开发环境，获取项目根目录（假设core目录在项目根目录下）
+            app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         # 创建日志目录
         log_dir = os.path.join(app_dir, "logs")
@@ -58,8 +63,13 @@ class Logger:
             enqueue=True
         )
         
-        # 获取应用程序所在目录
-        app_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        # 获取EXE所在目录或项目根目录
+        if getattr(sys, 'frozen', False):
+            # 打包后的EXE环境
+            app_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            # 开发环境，获取项目根目录（假设core目录在项目根目录下）
+            app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         # 添加文件处理器
         log_dir = os.path.join(app_dir, "logs")

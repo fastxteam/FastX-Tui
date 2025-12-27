@@ -3,6 +3,7 @@
 配置管理器模块 - 基于SQLite的配置管理系统
 """
 import os
+import sys
 import json
 import sqlite3
 from typing import Dict, Any, Optional
@@ -14,7 +15,15 @@ class ConfigManager:
     """基于SQLite的配置管理器"""
     
     def __init__(self, db_path: str = "fastx_tui.sqlite"):
-        self.db_path = Path(db_path)
+        # 获取EXE所在目录或项目根目录
+        if getattr(sys, 'frozen', False):
+            # 打包后的EXE环境
+            app_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            # 开发环境，获取项目根目录（假设core目录在项目根目录下）
+            app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # 将数据库路径设置为EXE所在目录或项目根目录下的文件
+        self.db_path = Path(os.path.join(app_dir, db_path))
         self._conn = None
         
         # 初始化配置
