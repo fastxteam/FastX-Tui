@@ -7,3 +7,5 @@ __pycache__/
 /.venv_plugins/
 test*.py
 *.egg-info/
+*.sqlite
+*.db

@@ -929,32 +929,70 @@ class AppManager:
             self.view_manager.clear_screen()
             
             # 显示执行信息
-            self.console.print("\n" + "=" * 70, style="yellow")
-            execute_msg = "正在执行: " + item.name
-            self.console.print(execute_msg.center(70), style="yellow bold")
-            self.console.print("=" * 70 + "\n", style="yellow")
+            from rich.panel import Panel
+            from rich.table import Table
+            from rich.text import Text
+            from rich.box import DOUBLE,SIMPLE,ROUNDED
             
-            self.console.print(f"📝 描述: {item.description}")
-            
+            # 创建执行信息Table
+            exec_table = Table(
+                box=SIMPLE,
+                show_header=True,
+                header_style="bold magenta",
+                expand=True,
+                padding=(0, 2)
+            )
+            exec_table.add_column(header="条目", justify="left")
+            exec_table.add_column(header="说明", justify="left")
+
+            exec_table.add_row("命令描述:", Text(item.description, style="bold"))
             from core.menu_system import CommandType
             if item.command_type == CommandType.SHELL and item.command:
-                self.console.print(f"💻 命令: {item.command}")
+                exec_table.add_row("命令:", Text(item.command, style="cyan"))
             
-            self.console.print(f"\n⏳ 正在执行...\n")
+            exec_table.add_row("命令状态:", Text("正在执行...", style="yellow bold"))
+            
+            # 创建正在执行Panel
+            exec_panel = Panel(
+                exec_table,
+                title=f"> {item.name} | 命令面板",
+                title_align="center",
+                border_style="yellow",
+                box=ROUNDED,
+                padding=(1, 2)
+            )
+            
+            self.console.print(exec_panel)
             
             # 执行命令
             self.command_count += 1
             output = self.menu_system.execute_action(item)
             
             # 显示结果
-            self.console.print("\n" + "=" * 70, style="green")
-            complete_msg = "执行完成: " + item.name
-            self.console.print(complete_msg.center(70), style="green bold")
-            self.console.print("=" * 70 + "\n", style="green")
-            self.console.print(output)
+            # 创建结果Panel
+            result_panel = Panel(
+                output,
+                title="> {item.name} | 结果面板",
+                title_align="center",
+                border_style="green",
+                box=ROUNDED,
+                padding=(1, 2)
+            )
             
-            self.console.print("\n" + "─" * 70, style="dim")
-            self.console.print(f"[yellow]按回车键继续...[/yellow]")
+            self.console.print(result_panel)
+            
+            # 创建返回提示Panel
+            return_panel = Panel(
+                Text("按回车键继续...", style="yellow bold"),
+                border_style="dim",
+                box=ROUNDED,
+                padding=(0, 2),
+                expand=False,
+                width=40
+            )
+            
+            self.console.print("\n")
+            self.console.print(return_panel, justify="center")
             input()
             # 清屏准备返回菜单
             self.view_manager.clear_screen()

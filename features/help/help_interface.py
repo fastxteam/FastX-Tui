@@ -4,6 +4,7 @@ FastX-Tui 帮助功能界面模块 - 修复版
 """
 from typing import Dict, Any
 import sys
+import struct
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -57,6 +58,10 @@ class HelpInterface:
         self.running = True
         self.showing_plugin_manual = False
         self.current_plugin = None
+        
+        # 导航位置记录
+        self.current_section_index = 0
+        self.section_keys = list(self.all_sections.keys())
 
     def get_version(self) -> str:
         """获取版本信息"""
@@ -91,7 +96,7 @@ class HelpInterface:
                 }
 
     def create_layout(self) -> Layout:
-        """创建基础布局"""
+        """创建基础布局 - 调整侧边栏比例，确保导航内容完整显示"""
         layout = Layout()
 
         # 创建主内容区域，不显示边距区域名称
@@ -101,9 +106,10 @@ class HelpInterface:
             Layout(name="footer", size=3)
         )
 
-        # 使用1:3的比例设置侧边栏和内容区，确保侧边栏占1/4，内容区占3/4
+        # 调整侧边栏和内容区的比例，确保侧边栏能完整显示导航内容
+        # 增大侧边栏比例，从1:3调整为1:2
         layout["main"].split_row(
-            Layout(name="sidebar", ratio=1),
+            Layout(name="sidebar", ratio=2),  # 增大侧边栏比例
             Layout(name="content", ratio=3)
         )
 
@@ -146,7 +152,7 @@ class HelpInterface:
         )
 
     def update_content(self) -> Panel:
-        """根据当前页面创建内容Panel"""
+        """根据当前页面创建内容Panel，让Rich自动处理内容显示"""
         if self.current_page in self.sections:
             # 基础章节
             if self.current_page == "basic":
@@ -203,7 +209,8 @@ class HelpInterface:
 
     def update_footer(self) -> Panel:
         """创建底部状态栏Panel"""
-        status = f"当前页面: {self.current_page} | 快捷键: 1-{len(self.all_sections)}切换, q退出"
+        current_index = self.section_keys.index(self.current_page)
+        status = f"章节: {self.all_sections[self.current_page]['name']} | 当前位置: {current_index + 1}/{len(self.section_keys)} | 快捷键: 1-{len(self.section_keys)}切换, 上下键切换章节, q退出"
         return Panel(
             status,
             style="dim",
@@ -219,6 +226,31 @@ class HelpInterface:
         layout["footer"].update(self.update_footer())
         return layout
 
+    def _get_terminal_size(self):
+        """获取终端大小"""
+        if sys.platform == 'win32':
+            # Windows平台
+            try:
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+                csbi = ctypes.create_string_buffer(22)
+                kernel32.GetConsoleScreenBufferInfo(handle, csbi)
+                left, top, right, bottom = struct.unpack("hhhhHhhhhhh", csbi.raw)[5:9]
+                width = right - left + 1
+                height = bottom - top + 1
+                return width, height
+            except:
+                return 80, 24
+        else:
+            # Unix平台
+            try:
+                import fcntl
+                import termios
+                return struct.unpack('hh', fcntl.ioctl(0, termios.TIOCGWINSZ, '1234'))
+            except:
+                return 80, 24
+    
     def _getch(self) -> str:
         """获取单个按键输入，兼容Windows和Unix系统"""
         if sys.platform == 'win32':
@@ -264,6 +296,76 @@ class HelpInterface:
                 return ch
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    
+    def _render_content_to_lines(self, content) -> list:
+        """将内容渲染为行列表"""
+        # 创建一个临时控制台用于渲染
+        temp_console = Console(width=self.console.width, color_system="truecolor")
+        
+        # 渲染内容到字符串
+        with temp_console.capture() as capture:
+            temp_console.print(content)
+        
+        rendered = capture.get()
+        return rendered.strip().split('\n')
+    
+    def _calculate_content_height(self) -> int:
+        """计算内容区域可用高度"""
+        # 获取终端总高度
+        _, total_height = self._get_terminal_size()
+        
+        # 减去header和footer的高度
+        # header: 3 lines, footer: 3 lines, borders: 2 lines
+        available_height = total_height - 3 - 3 - 2
+        return max(available_height, 10)  # 确保至少有10行可用
+    
+    def _get_content_panel_with_pagination(self, original_panel, current_page: int, total_pages: int) -> Panel:
+        """为Panel添加分页信息"""
+        # 获取原始内容
+        original_content = original_panel.renderable
+        
+        # 创建页码信息
+        from rich.text import Text
+        page_info = Text(f"\n[dim]页码: {current_page}/{total_pages} - 使用左右键翻页[/dim]")
+        
+        # 组合内容
+        from rich.console import Group
+        new_content = Group(original_content, page_info)
+        
+        # 返回新的Panel
+        return Panel(
+            new_content,
+            title=original_panel.title,
+            subtitle=original_panel.subtitle,
+            border_style=original_panel.border_style,
+            box=original_panel.box,
+            padding=original_panel.padding
+        )
+    
+    def _calculate_total_pages(self, content) -> int:
+        """计算内容的总页数"""
+        # 对于长内容，估算页数
+        # 这里使用简单的估算方法：根据内容类型估算行数
+        if isinstance(content, (str, Text)):
+            # 字符串或Text对象，按换行符估算行数
+            text = str(content)
+            line_count = text.count('\n') + 1
+        elif hasattr(content, '__len__') and not isinstance(content, (dict, set)):
+            # 可迭代对象，估算行数
+            line_count = len(content) * 2  # 每个项目估算2行
+        else:
+            # 其他类型，默认1页
+            return 1
+        
+        page_height = self._calculate_content_height()
+        total_pages = (line_count + page_height - 1) // page_height
+        return max(total_pages, 1)
+    
+    def _get_content_for_page(self, content, page_num: int) -> any:
+        """获取指定页面的内容"""
+        # 这里暂时返回原始内容，后续可以实现更复杂的分页逻辑
+        # 由于Rich的渲染机制，直接返回原始内容，让Rich自动处理
+        return content
 
     def handle_input(self):
         """处理用户输入"""
@@ -284,30 +386,27 @@ class HelpInterface:
                 # 数字键处理
                 if ch.isdigit():
                     section_index = int(ch) - 1
-                    if 0 <= section_index < len(self.all_sections):
-                        self.current_page = list(self.all_sections.keys())[section_index]
+                    if 0 <= section_index < len(self.section_keys):
+                        self.current_page = self.section_keys[section_index]
+                        self.current_section_index = section_index
 
                 # 方向键处理
-                elif ch == 'left':
-                    current_index = list(self.all_sections.keys()).index(self.current_page)
-                    new_index = (current_index - 1) % len(self.all_sections)
-                    self.current_page = list(self.all_sections.keys())[new_index]
-
-                elif ch == 'right':
-                    current_index = list(self.all_sections.keys()).index(self.current_page)
-                    new_index = (current_index + 1) % len(self.all_sections)
-                    self.current_page = list(self.all_sections.keys())[new_index]
-
                 elif ch == 'up':
-                    # 上箭头暂时不用
-                    pass
+                    # 上箭头：上一章
+                    if self.current_section_index > 0:
+                        self.current_section_index -= 1
+                        self.current_page = self.section_keys[self.current_section_index]
 
                 elif ch == 'down':
-                    # 下箭头暂时不用
-                    pass
+                    # 下箭头：下一章
+                    if self.current_section_index < len(self.section_keys) - 1:
+                        self.current_section_index += 1
+                        self.current_page = self.section_keys[self.current_section_index]
 
     def show_help(self):
         """显示帮助信息"""
+        # 重置运行状态，确保可以多次调用
+        self.running = True
         self.console.clear()
         self.handle_input()
         self.console.clear()
@@ -829,5 +928,5 @@ class HelpInterface:
 # 测试代码
 if __name__ == "__main__":
     console = Console()
-    help_feature = HelpFeature(console)
-    help_feature.show_help()
+    help_interface = HelpInterface(console)
+    help_interface.show_help()
