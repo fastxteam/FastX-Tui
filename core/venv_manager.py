@@ -138,12 +138,42 @@ class VenvManager:
         Returns:
             bool: 虚拟环境是否是最新的
         """
-        # 检查虚拟环境是否存在
+        # 检查虚拟环境是否存在且可用
         if not self.venv_exists(plugin_name):
             return False
         
-        # 检查pyproject.toml或uv.lock文件的修改时间是否比虚拟环境创建时间晚
+        # 检查虚拟环境是否真正可用（Python可执行文件是否存在）
+        python_path = self.get_venv_python_path(plugin_name)
+        if not os.path.exists(python_path):
+            self.logger.debug(f"插件 {plugin_name} 的虚拟环境Python可执行文件不存在，需要重新创建")
+            return False
+        
+        # 检查虚拟环境Lib目录是否有内容
         venv_path = self.get_venv_path(plugin_name)
+        if sys.platform == "win32":
+            lib_path = os.path.join(venv_path, "Lib")
+        else:
+            lib_path = os.path.join(venv_path, "lib")
+        
+        if not os.path.exists(lib_path) or len(os.listdir(lib_path)) == 0:
+            self.logger.debug(f"插件 {plugin_name} 的虚拟环境Lib目录为空，需要重新创建")
+            return False
+        
+        # 检查site-packages目录是否有内容
+        site_packages_path = None
+        for root, dirs, files in os.walk(lib_path):
+            for dir in dirs:
+                if dir == "site-packages":
+                    site_packages_path = os.path.join(root, dir)
+                    break
+            if site_packages_path:
+                break
+        
+        if not site_packages_path or len(os.listdir(site_packages_path)) == 0:
+            self.logger.debug(f"插件 {plugin_name} 的虚拟环境site-packages目录为空，需要重新创建")
+            return False
+        
+        # 检查pyproject.toml或uv.lock文件的修改时间是否比虚拟环境创建时间晚
         venv_mtime = os.path.getmtime(venv_path)
         
         # 检查pyproject.toml
@@ -203,6 +233,7 @@ class VenvManager:
             
             # 创建虚拟环境
             venv_path = self.get_venv_path(plugin_name)
+            venv_python_path = self.get_venv_python_path(plugin_name)
             
             # 确保虚拟环境目录不存在
             if os.path.exists(venv_path):
@@ -212,17 +243,31 @@ class VenvManager:
             # 使用uv创建虚拟环境（优先）
             if self.uv_available:
                 try:
-                    # 使用系统uv创建虚拟环境
+                    # 使用系统uv创建虚拟环境，指定UTF-8编码
                     result = subprocess.run(
                         ["uv", "venv", venv_path],
                         capture_output=True,
-                        text=True
+                        text=True,
+                        encoding='utf-8'
                     )
                     
                     if result.returncode != 0:
                         raise Exception(f"uv创建虚拟环境失败: {result.stderr}")
                     
                     self.logger.info("使用uv创建虚拟环境成功")
+                    
+                    # uv创建的虚拟环境可能没有pip，需要手动安装
+                    self.logger.info("安装pip到虚拟环境")
+                    result = subprocess.run(
+                        [venv_python_path, "-m", "ensurepip"],
+                        capture_output=True,
+                        text=True,
+                        encoding='utf-8'
+                    )
+                    
+                    if result.returncode != 0:
+                        raise Exception(f"安装pip失败: {result.stderr}")
+                    
                 except Exception as e:
                     self.logger.warning(f"使用uv创建虚拟环境失败，尝试使用venv模块: {str(e)}")
                     
@@ -251,7 +296,7 @@ class VenvManager:
             self.created_venvs[plugin_name] = venv_path
             self.logger.info(f"插件 {plugin_name} 的虚拟环境创建成功")
             return True
-            
+        
         except Exception as e:
             self.logger.error(f"为插件 {plugin_name} 创建虚拟环境时发生错误: {str(e)}")
             return False
@@ -266,40 +311,60 @@ class VenvManager:
         Returns:
             bool: 是否成功安装依赖
         """
-        # 使用虚拟环境中的包管理器安装依赖
+        venv_path = self.get_venv_path(plugin_name)
         venv_python_path = self.get_venv_python_path(plugin_name)
         
-        # 检查虚拟环境中是否有uv
-        venv_uv_path = self.get_venv_uv_path(plugin_name)
-        uv_available = os.path.exists(venv_uv_path)
-        
         try:
-            if uv_available or self.uv_available:
-                # 使用uv安装依赖
+            # 优先使用uv安装依赖，因为uv创建的虚拟环境可能没有pip
+            if self.uv_available:
                 self.logger.info("使用uv安装依赖")
                 
-                # 使用系统uv或虚拟环境中的uv
-                uv_path = venv_uv_path if uv_available else "uv"
-                
-                # 切换到插件目录并执行uv sync
+                # 使用uv pip install命令，指定虚拟环境的Python解释器
                 result = subprocess.run(
-                    [uv_path, "sync"],
+                    ["uv", "pip", "install", ".", "--python", venv_python_path],
                     cwd=plugin_path,
                     capture_output=True,
-                    text=True
+                    text=True,
+                    encoding='utf-8'
                 )
                 
                 if result.returncode != 0:
                     raise Exception(f"uv安装依赖失败: {result.stderr}")
+                
+                return True
             else:
-                # 使用pip安装依赖
-                self.logger.info("使用pip安装依赖")
+                # uv不可用，使用pip安装依赖
+                self.logger.info("使用虚拟环境中的pip安装依赖")
+                
+                # 检查虚拟环境中是否有pip
+                result = subprocess.run(
+                    [venv_python_path, "-m", "pip", "--version"],
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8'
+                )
+                
+                if result.returncode != 0:
+                    # 虚拟环境中没有pip，需要先安装pip
+                    self.logger.info("虚拟环境中没有pip，先安装pip")
+                    
+                    # 使用ensurepip安装pip
+                    result = subprocess.run(
+                        [venv_python_path, "-m", "ensurepip"],
+                        capture_output=True,
+                        text=True,
+                        encoding='utf-8'
+                    )
+                    
+                    if result.returncode != 0:
+                        raise Exception(f"安装pip失败: {result.stderr}")
                 
                 # 升级pip
                 result = subprocess.run(
                     [venv_python_path, "-m", "pip", "install", "--upgrade", "pip"],
                     capture_output=True,
-                    text=True
+                    text=True,
+                    encoding='utf-8'
                 )
                 
                 if result.returncode != 0:
@@ -313,7 +378,8 @@ class VenvManager:
                         [venv_python_path, "-m", "pip", "install", "-r", requirements_path],
                         cwd=plugin_path,
                         capture_output=True,
-                        text=True
+                        text=True,
+                        encoding='utf-8'
                     )
                 else:
                     # 使用pyproject.toml安装依赖
@@ -321,13 +387,14 @@ class VenvManager:
                         [venv_python_path, "-m", "pip", "install", "."],
                         cwd=plugin_path,
                         capture_output=True,
-                        text=True
+                        text=True,
+                        encoding='utf-8'
                     )
                 
                 if result.returncode != 0:
                     raise Exception(f"pip安装依赖失败: {result.stderr}")
-            
-            return True
+                
+                return True
             
         except Exception as e:
             self.logger.error(f"为插件 {plugin_name} 安装依赖失败: {str(e)}")
@@ -409,12 +476,13 @@ class VenvManager:
             # 构建完整的命令
             full_command = [python_path, "-c"] + command
             
-            # 执行命令
+            # 执行命令，指定UTF-8编码
             result = subprocess.run(
                 full_command,
                 cwd=plugin_path,
                 capture_output=True,
-                text=True
+                text=True,
+                encoding='utf-8'
             )
             
             return {
@@ -496,23 +564,22 @@ class VenvManager:
                 return self.create_venv(plugin_name, plugin_path)
             
             # 使用uv更新依赖（优先）
+            venv_path = self.get_venv_path(plugin_name)
             venv_python_path = self.get_venv_python_path(plugin_name)
-            venv_uv_path = self.get_venv_uv_path(plugin_name)
-            uv_available = os.path.exists(venv_uv_path) or self.uv_available
             
             try:
-                if uv_available:
+                # 优先使用系统uv
+                if self.uv_available:
                     # 使用uv更新依赖
                     self.logger.info("使用uv更新依赖")
                     
-                    # 使用系统uv或虚拟环境中的uv
-                    uv_path = venv_uv_path if os.path.exists(venv_uv_path) else "uv"
-                    
+                    # 使用uv pip install命令，指定虚拟环境的Python解释器
                     result = subprocess.run(
-                        [uv_path, "sync"],
+                        ["uv", "pip", "install", ".", "--python", venv_python_path],
                         cwd=plugin_path,
                         capture_output=True,
-                        text=True
+                        text=True,
+                        encoding='utf-8'
                     )
                     
                     if result.returncode != 0:
@@ -520,6 +587,29 @@ class VenvManager:
                 else:
                     # 使用pip更新依赖
                     self.logger.info("使用pip更新依赖")
+                    
+                    # 检查虚拟环境中是否有pip
+                    result = subprocess.run(
+                        [venv_python_path, "-m", "pip", "--version"],
+                        capture_output=True,
+                        text=True,
+                        encoding='utf-8'
+                    )
+                    
+                    if result.returncode != 0:
+                        # 虚拟环境中没有pip，需要先安装pip
+                        self.logger.info("虚拟环境中没有pip，先安装pip")
+                        
+                        # 使用ensurepip安装pip
+                        result = subprocess.run(
+                            [venv_python_path, "-m", "ensurepip"],
+                            capture_output=True,
+                            text=True,
+                            encoding='utf-8'
+                        )
+                        
+                        if result.returncode != 0:
+                            raise Exception(f"安装pip失败: {result.stderr}")
                     
                     # 检查requirements.txt
                     requirements_path = os.path.join(plugin_path, "requirements.txt")
@@ -529,7 +619,8 @@ class VenvManager:
                             [venv_python_path, "-m", "pip", "install", "-r", requirements_path],
                             cwd=plugin_path,
                             capture_output=True,
-                            text=True
+                            text=True,
+                            encoding='utf-8'
                         )
                     else:
                         # 使用pyproject.toml更新依赖
@@ -537,7 +628,8 @@ class VenvManager:
                             [venv_python_path, "-m", "pip", "install", "."],
                             cwd=plugin_path,
                             capture_output=True,
-                            text=True
+                            text=True,
+                            encoding='utf-8'
                         )
                     
                     if result.returncode != 0:
