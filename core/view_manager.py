@@ -60,6 +60,9 @@ class View(ABC):
 class ViewManager:
     """视图管理器 - 统一管理所有视图、路由和布局"""
     
+    # 页面宽度控制变量，用于统一调整所有UI元素的宽度
+    PAGE_WIDTH = 125
+    
     def __init__(self, console: Console, config_manager, update_manager=None):
         self.console = console
         self.config_manager = config_manager
@@ -198,53 +201,95 @@ class ViewManager:
         # 使用传入的样式或从配置获取
         display_style = banner_style if banner_style else self.config_manager.get_config("banner_style", "default")
         
-        banner = f"""
-╔═════════════════════════════════════════════════════════════════════════╗════════════════════════════════════════════╗
-║                                                                         ║                                            ║
-║   ███████╗ █████╗ ███████╗████████╗██╗  ██╗     ████████╗██╗   ██╗██╗   ║   ████                                     ║
-║   ██╔════╝██╔══██╗██╔════╝╚══██╔══╝╚██╗██╔╝     ╚══██╔══╝██║   ██║██║   ║      ███         +------------+            ║
-║   █████╗  ███████║███████╗   ██║    ╚███╔╝         ██║   ██║   ██║██║   ║         ███      |  TERMINAL  |            ║
-║   ██╔══╝  ██╔══██║╚════██║   ██║    ██╔██╗         ██║   ██║   ██║██║   ║           ███    |   > _      |            ║
-║   ██║     ██║  ██║███████║   ██║   ██╔╝ ██╗        ██║   ╚██████╔╝██║   ║         ███      +------^-----+            ║
-║   ╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝        ╚═╝    ╚═════╝ ╚═╝   ║      ███                                   ║
-║                                                                         ║   ███            ██████████████            ║
-║                  Terminal ToolSets For MCU                              ║                                            ║
-║══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════║
-║   Built with FastXTeam/TUI, Architect Developed By @wanqiang.liu        ║ https://github.com/fastxteam/FastX-Tui.git ║
-╚═════════════════════════════════════════════════════════════════════════╝════════════════════════════════════════════╝
-        """
+        # 定义banner内容，确保格式正确
+        banner_content = [
+            "                                                                                                                           ",
+            "    ████          +------------+   ███████╗ █████╗ ███████╗████████╗██╗  ██╗     ████████╗██╗   ██╗██╗                     ",
+            "      ████        |  TERMINAL  |   ██╔════╝██╔══██╗██╔════╝╚══██╔══╝╚██╗██╔╝     ╚══██╔══╝██║   ██║██║                     ",
+            "        ████      |       CLI  |   █████╗  ███████║███████╗   ██║    ╚███╔╝         ██║   ██║   ██║██║                     ",
+            "          ████    |   > _      |   ██╔══╝  ██╔══██║╚════██║   ██║    ██╔██╗         ██║   ██║   ██║██║                     ",
+            "        ████      |            |   ██║     ██║  ██║███████║   ██║   ██╔╝ ██╗        ██║   ╚██████╔╝██║                     ",
+            "      ████        +------^-----+   ╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝        ╚═╝    ╚═════╝ ╚═╝                     ",
+            "    ████          ██████████████   FastX-TUI Terminal PluginSys, Architect Developed By @FastXTeam/WQ.L                    ",
+            "                                                                                                                           "
+        ]
+        
+        from rich.panel import Panel
+        from rich.box import ROUNDED
+        from rich.text import Text
+        from rich.color import parse_rgb_hex
         
         if display_style == "gradient":
-            # 转换横幅为行列表
-            banner_lines = banner.strip().split('\n')
-            self._print_with_gradient(banner_lines, ["#00ffff", "#ff00ff"])
+            # 使用_print_with_gradient方法生成渐变文本，返回Text对象
+            gradient_text = self._print_with_gradient(banner_content, ["00ffff", "ff00ff"], return_text=True)
+            
+            # 使用Panel包裹渐变文本，设置宽度为PAGE_WIDTH
+            banner_panel = Panel(
+                gradient_text,
+                box=ROUNDED,
+                style="cyan",
+                expand=False,
+                width=self.PAGE_WIDTH
+            )
         else:
-            # 默认样式
-            self.console.print(banner, style="cyan")
+            # 默认样式，使用Panel包裹，设置宽度为PAGE_WIDTH
+            # 将列表转换为字符串，添加适当的换行
+            banner_str = "\n".join(banner_content)
+            banner_panel = Panel(
+                banner_str,
+                box=ROUNDED,
+                style="cyan",
+                expand=False,
+                width=self.PAGE_WIDTH
+            )
+        
+        # 打印banner
+        self.console.print(banner_panel)
     
-    def _print_with_gradient(self, lines: List[str], colors: List[str]):
-        """使用渐变效果打印文本"""
+    def _print_with_gradient(self, lines: List[str], colors: List[str], return_text: bool = False):
+        """使用渐变效果打印文本
+        
+        Args:
+            lines: 要打印的文本行列表
+            colors: 渐变的两种颜色
+            return_text: 是否返回生成的Text对象，而不是直接打印
+            
+        Returns:
+            如果return_text为True，返回生成的Text对象；否则返回None
+        """
         from rich.color import parse_rgb_hex
         
         r1, g1, b1 = parse_rgb_hex(colors[0].lstrip('#'))
         r2, g2, b2 = parse_rgb_hex(colors[1].lstrip('#'))
+        
+        # 创建完整的Text对象
+        full_text = Text()
 
-        for line in lines:
-            main_text = Text()
-            if not line:  # 跳过空行
-                self.console.print()
-                continue
-                
-            for j, char in enumerate(line):
-                if char != ' ':
-                    ratio = j / (len(line) - 1) if len(line) > 1 else 0
-                    r = int(r1 + (r2 - r1) * ratio)
-                    g = int(g1 + (g2 - g1) * ratio)
-                    b = int(b1 + (b2 - b1) * ratio)
-                    main_text.append(char, style=f"bold rgb({r},{g},{b})")
-                else:
-                    main_text.append(char)
-            self.console.print(main_text)
+        for i, line in enumerate(lines):
+            line_text = Text()
+            if not line:  # 空行
+                line_text.append("\n")
+            else:
+                for j, char in enumerate(line):
+                    if char != ' ':
+                        ratio = j / (len(line) - 1) if len(line) > 1 else 0
+                        r = int(r1 + (r2 - r1) * ratio)
+                        g = int(g1 + (g2 - g1) * ratio)
+                        b = int(b1 + (b2 - b1) * ratio)
+                        line_text.append(char, style=f"bold rgb({r},{g},{b})")
+                    else:
+                        line_text.append(char)
+                # 除了最后一行，其他行都添加换行
+                if i < len(lines) - 1:
+                    line_text.append("\n")
+            
+            full_text.append(line_text)
+        
+        if return_text:
+            return full_text
+        else:
+            self.console.print(full_text)
+            return None
     
     def _render_content(self, route: ViewRoute, *args, **kwargs):
         """渲染内容区"""
@@ -326,8 +371,8 @@ class ViewManager:
         log_level_icon = log_level_icons.get(current_log_level, "📝")
         
         # 构建状态栏右侧内容 - 格式：图标：运行s | 指令统计图标：n | 日志等级图标：xx | 版本图标：vx.x.x ⚡
-        # 使用固定宽度120(135 跟 "─" * 120差不多)，与菜单宽度对齐
-        menu_width = 130
+        # 使用固定宽度与菜单宽度对齐
+        menu_width = self.PAGE_WIDTH
         
         # 右侧状态信息
         runtime_str = f"⏱️: {int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
@@ -338,11 +383,11 @@ class ViewManager:
         # 构建右侧内容
         right_content = f"{runtime_str} | {commands_str} | {log_str} | {version_str}"
         
-        # 左侧面包屑 + 右侧状态信息，总宽度120
+        # 左侧面包屑 + 右侧状态信息，总宽度PAGE_WIDTH
         status_content = f"{breadcrumb_str}".ljust(menu_width - len(right_content) - 1) + right_content
         
         # 渲染状态栏 - 添加分隔线和特效
-        self.console.print("─" * 120, style="bold white")
+        self.console.print("─" * self.PAGE_WIDTH, style="bold white")
         self.console.print(status_content, style="bold white")
     
     def _render_update_prompt(self, update_manager=None):
@@ -357,18 +402,20 @@ class ViewManager:
             
             # 创建格式化的更新消息
             update_message = Text.from_markup(
-                f"[#F9E2AF]FastX-Tui update available! {current_version} -> {latest_version}[/#F9E2AF]\n"
-                f"[#F9E2AF]Check the latest release at: `https://github.com/fastxteam/FastX-Tui/releases/latest[/#F9E2AF]` "
+                f"[#A3DD97]FastX-Tui update available! {current_version} -> {latest_version}[/#A3DD97]\n"
+                f"[#A3DD97]Check the latest release at: `https://github.com/fastxteam/FastX-Tui/releases/latest[/#A3DD97]` "
             )
             
             # 使用Panel显示更新消息
             self.console.print(
                 Panel(
                     update_message,
-                    box = box.DOUBLE,
-                    border_style="#F9E2AF",
+                    title=f"[ Notice!!! ]",
+                    title_align="left",
+                    box = box.ROUNDED,
+                    border_style="#A3DD97",
                     expand=True,
-                    width=120
+                    width=self.PAGE_WIDTH
                 )
             )
             # 添加空行分隔
@@ -388,7 +435,7 @@ class ViewManager:
         # 渲染设置栏
         settings_text = "设置栏: " + " | ".join(settings)
         # 添加分隔线和特效
-        self.console.print("─" * 120, style="dim")
+        self.console.print("─" * self.PAGE_WIDTH, style="dim")
         self.console.print(settings_text, style="dim bold")
     
     def _render_shortcut(self):
@@ -412,7 +459,7 @@ class ViewManager:
         # 渲染快捷栏
         shortcut_text = "快捷栏: " + " | ".join(shortcuts)
         # 添加分隔线和特效
-        self.console.print("─" * 120, style="dim")
+        self.console.print("─" * self.PAGE_WIDTH, style="dim")
         self.console.print(shortcut_text, style="dim bold")
     
     def get_current_route(self) -> Optional[ViewRoute]:
@@ -458,7 +505,7 @@ class ViewManager:
             box=box.SIMPLE,
             show_header=True,
             header_style="bold white",
-            width=116
+            width=self.PAGE_WIDTH - 4  # 留出边框空间
         )
         
         table.add_column("编号", style="cyan bold", justify="center")
@@ -491,7 +538,7 @@ class ViewManager:
             title_align= "left",
             subtitle=f"> {menu_node.description}",
             subtitle_align="center",
-            box=box.DOUBLE,
+            box=box.ROUNDED,
             style="cyan",
-            width=120
+            width=self.PAGE_WIDTH
         ))
