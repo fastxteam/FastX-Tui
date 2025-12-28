@@ -1,0 +1,99 @@
+# MkDocs Configuration
+# ===================
+
+# 站点基本信息
+site_name: FastX-Tui 文档
+site_description: 统一视图架构的终端用户界面应用程序文档
+site_author: FastXTeam
+site_url: https://fastxteam.github.io/FastX-Tui/
+
+# 文档目录配置
+docs_dir: docs
+
+# 主题配置
+theme:
+  name: material
+  logo: assets/icons/logo.png
+  favicon: assets/icons/favicon.ico
+  language: zh
+  palette:
+    primary: cyan
+    accent: blue
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.instant
+    - navigation.expand
+    - navigation.sections
+    - toc.integrate
+    - search.highlight
+    - search.suggest
+
+# 插件配置
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_root_heading: true
+            show_source: true
+            show_inheritance: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            separate_signature: true
+
+# 扩展配置
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.snippets
+  - pymdownx.tabbed
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+# 导航配置
+nav:
+  - 首页: index.md
+  - 快速开始: 
+    - 安装: quickstart/installation.md
+    - 入门指南: quickstart/getting_started.md
+  - 核心功能: 
+    - 平台工具: features/platform_tools.md
+    - 插件系统: features/plugin_system.md
+    - 配置管理: features/config_management.md
+    - 日志管理: features/log_management.md
+    - 任务管理: features/task_management.md
+  - 插件开发: 
+    - 开发指南: plugin_development/guide.md
+    - 插件架构: plugin_development/architecture.md
+    - 示例插件: plugin_development/examples.md
+    - 插件蓝图: plugin_development/blueprint.md
+    - 插件开发指南: plugin_development/PLUGIN_DEVELOPMENT_GUIDE.md
+  - 配置参考: 
+    - 配置项说明: configuration/options.md
+    - 高级配置: configuration/advanced.md
+  - 开发指南: 
+    - 开发环境: development/environment.md
+    - 开发流程: development/workflow.md
+    - 自动文档生成: development/auto_docs.md
+    - 贡献指南: development/contributing.md
+  - 常见问题: faq.md
+  - 更新日志: changelog.md
+
+# 静态资源配置
+# extra_css:
+#   - stylesheets/extra.css
+# extra_javascript:
+#   - javascripts/extra.js
+
+# 额外信息
+# extra:
+#   social:
+#     - icon: fontawesome/brands/github
+#       link: https://github.com/fastxteam/FastX-Tui
+#     - icon: fontawesome/brands/linkedin
+#       link: https://www.linkedin.com/company/fastxteam/
