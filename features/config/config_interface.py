@@ -304,6 +304,7 @@ class ConfigInterface:
             show_welcome = self.config_manager.get_config("show_welcome_page", True)
             auto_check_updates = self.config_manager.get_config("auto_check_updates", True)
             banner_style = self.config_manager.get_config("banner_style", "default")
+            use_async = self.config_manager.get_config("use_async_tasks", True)
 
             # 创建设置表格
             settings_table = Table(
@@ -322,13 +323,13 @@ class ConfigInterface:
             settings_table.add_row(
                 "1",
                 "显示欢迎页面",
-                "● 开启" if show_welcome else "× 关闭",
+                "√ 开启" if show_welcome else "× 关闭",
                 "启动时显示欢迎页面"
             )
             settings_table.add_row(
                 "2",
                 "自动检查更新",
-                "● 开启" if auto_check_updates else "× 关闭",
+                "√ 开启" if auto_check_updates else "× 关闭",
                 "启动时自动检查更新"
             )
             settings_table.add_row(
@@ -336,6 +337,12 @@ class ConfigInterface:
                 "横幅样式",
                 banner_style,
                 "标题横幅的显示样式"
+            )
+            settings_table.add_row(
+                "4",
+                "使用异步任务",
+                "√ 开启" if use_async else "× 关闭",
+                "使用异步方式执行命令，提高系统响应性"
             )
 
             settings_panel = Panel(
@@ -375,6 +382,13 @@ class ConfigInterface:
                 new_style = "gradient" if banner_style == "default" else "default"
                 self.config_manager.set_config("banner_style", new_style)
                 self._show_message(f"横幅样式已设置为: {new_style}", "green")
+                self._wait_for_keypress()
+            elif choice == '4':
+                # 切换使用异步任务设置
+                new_value = not use_async
+                self.config_manager.set_config("use_async_tasks", new_value)
+                status = "开启" if new_value else "关闭"
+                self._show_message(f"使用异步任务: {status}", "green")
                 self._wait_for_keypress()
             else:
                 self._show_message("无效的选择", "red")

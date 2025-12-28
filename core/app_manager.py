@@ -5,6 +5,7 @@ FastX-Tui 应用管理器
 import os
 import sys
 import time
+import asyncio
 from typing import Dict, Any, Optional
 
 from rich.console import Console
@@ -18,12 +19,14 @@ from core.update_manager import UpdateManager
 from core.network_tools import NetworkToolsPlugin
 from core.version import FULL_VERSION, VERSION
 from core.config_manager import ConfigManager
+from core.task_manager import TaskManager
 from features.search.search_interface import SearchInterface
 from features.help.help_interface import HelpInterface
 from features.config.config_interface import ConfigInterface
 from features.plugin.plugin_interface import PluginInterface
 from features.logging.logging_interface import LoggingInterface
 from features.update.update_interface import UpdateInterface
+from features.task import TaskInterface
 
 class AppManager:
     """应用管理器"""
@@ -100,6 +103,14 @@ class AppManager:
         
         # 将update_manager传递给view_manager
         self.view_manager.set_update_manager(self.update_manager)
+        
+        # 初始化任务管理器
+        self.task_manager = TaskManager()
+        # 启动任务管理器
+        self.task_manager.start()
+        
+        # 初始化任务管理界面
+        self.task_interface = TaskInterface(self.console, self.task_manager, self.config_manager)
     
     def initialize(self):
         """初始化应用"""
@@ -768,6 +779,10 @@ class AppManager:
         """显示日志管理界面"""
         self.log_manager.show_log_interface()
     
+    def show_task_interface(self):
+        """显示任务管理界面"""
+        self.task_interface.show_task_list()
+    
     def show_help(self, *args, **kwargs):
         """显示帮助信息"""
         self.help_feature.show_help()
@@ -800,7 +815,7 @@ class AppManager:
         available_choices = [str(i) for i in range(1, len(display_items) + 1)]
         
         # 添加快捷键
-        shortcut_choices = ['c', 'h', 'u', 's', 'l', 'q', 'm', 'p']
+        shortcut_choices = ['c', 'h', 'u', 's', 'l', 'q', 'm', 'p', 't']
         
         # 根据当前菜单类型添加返回/退出选项
         from core.menu_system import MenuType
@@ -862,6 +877,11 @@ class AppManager:
         elif choice == 'p':
             # F2：插件管理
             self.show_plugin_interface()
+            return
+        
+        elif choice == 't':
+            # 显示任务列表
+            self.show_task_interface()
             return
         
         elif choice == '0':
@@ -930,6 +950,7 @@ class AppManager:
             from rich.table import Table
             from rich.text import Text
             from rich.box import DOUBLE,SIMPLE,ROUNDED
+            from core.menu_system import CommandType
             
             # 创建执行信息Table
             exec_table = Table(
@@ -943,13 +964,12 @@ class AppManager:
             exec_table.add_column(header="说明", justify="left")
 
             exec_table.add_row("命令描述:", Text(item.description, style="bold"))
-            from core.menu_system import CommandType
             if item.command_type == CommandType.SHELL and item.command:
                 exec_table.add_row("命令:", Text(item.command, style="cyan"))
             
-            exec_table.add_row("命令状态:", Text("正在执行...", style="yellow bold"))
+            exec_table.add_row("命令状态:", Text("已添加到任务队列", style="yellow bold"))
             
-            # 创建正在执行Panel
+            # 创建执行信息Panel
             exec_panel = Panel(
                 exec_table,
                 title=f"> {item.name} | 命令面板",
@@ -961,22 +981,52 @@ class AppManager:
             
             self.console.print(exec_panel)
             
-            # 执行命令
+            # 执行命令 - 根据配置决定同步或异步执行
             self.command_count += 1
-            output = self.menu_system.execute_action(item)
             
-            # 显示结果
-            # 创建结果Panel
-            result_panel = Panel(
-                output,
-                title=f"> {item.name} | 结果面板",
-                title_align="center",
-                border_style="green",
-                box=ROUNDED,
-                padding=(1, 2)
-            )
+            # 检查是否启用异步执行
+            use_async = self.config_manager.get_config("use_async_tasks", True)
             
-            self.console.print(result_panel)
+            if use_async:
+                # 异步方式 - 添加到任务队列
+                if item.command_type == CommandType.PYTHON and item.python_func:
+                    # 添加Python函数任务
+                    task_id = self.task_manager.add_task(
+                        name=item.name,
+                        description=item.description,
+                        command_type="python",
+                        python_func=item.python_func,
+                        args=item.args,
+                        kwargs=item.kwargs
+                    )
+                elif item.command_type == CommandType.SHELL and item.command:
+                    # 添加Shell命令任务
+                    task_id = self.task_manager.add_task(
+                        name=item.name,
+                        description=item.description,
+                        command_type="shell",
+                        command=item.command
+                    )
+                
+                # 显示任务添加成功信息
+                self.console.print(f"\n[green]✅ 命令已成功添加到任务队列，任务ID: {task_id}[/green]")
+                self.console.print("[yellow]💡 提示: 输入 T 查看任务列表[/yellow]")
+            else:
+                # 同步方式 - 直接执行
+                output = self.menu_system.execute_action(item)
+                
+                # 显示结果
+                # 创建结果Panel
+                result_panel = Panel(
+                    output,
+                    title=f"> {item.name} | 结果面板",
+                    title_align="center",
+                    border_style="green",
+                    box=ROUNDED,
+                    padding=(1, 2)
+                )
+                
+                self.console.print(result_panel)
             
             # 创建返回提示Panel
             return_panel = Panel(
@@ -1037,7 +1087,15 @@ class AppManager:
             # 进入主循环前先清屏，确保欢迎界面内容被完全清理
             self.view_manager.clear_screen()
             
-            while True:
+            # 使用异步事件循环运行主循环
+            asyncio.run(self._async_main_loop())
+        except KeyboardInterrupt:
+            self.handle_exit()
+    
+    async def _async_main_loop(self):
+        """异步主循环"""
+        while True:
+            try:
                 # 显示界面
                 self._display_interface()
                 
@@ -1046,8 +1104,18 @@ class AppManager:
                 
                 # 处理选择
                 self._process_choice(choice)
-        except KeyboardInterrupt:
-            self.handle_exit()
+                
+                # 让出控制权，允许异步任务执行
+                await asyncio.sleep(0.1)
+            except KeyboardInterrupt:
+                self.handle_exit()
+                break
+            except Exception as e:
+                self.logger.error(f"主循环错误: {str(e)}")
+                self.console.print(f"[red]❌ 主循环错误: {str(e)}[/red]")
+                input(f"\n按回车键继续...")
+    
+
     
     def cleanup(self):
         """清理资源"""
