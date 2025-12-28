@@ -107,11 +107,6 @@ class AppManager:
             # 初始化系统
             self._init_system()
             
-            # 根据配置检查版本更新
-            if self.config_manager.get_config("auto_check_updates", True):
-                update_available, latest_version = self.update_manager.check_for_updates()
-                # 不再直接显示更新提示，将由view_manager在渲染布局时自动显示
-            
             # 注册所有菜单和命令为路由
             self._register_routes()
             

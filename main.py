@@ -5,14 +5,16 @@ FastX TUI - 统一视图架构版本
 import os
 import sys
 from core.app_manager import AppManager
+from core.startup_manager import StartupManager
 
 def main():
     """主函数"""
     # 创建应用管理器实例
     app_manager = AppManager()
     
-    # 初始化应用
-    if not app_manager.initialize():
+    # 使用启动管理器初始化应用
+    startup_manager = StartupManager()
+    if not startup_manager.run_startup(app_manager):
         sys.exit(1)
     
     # 启动应用主循环
