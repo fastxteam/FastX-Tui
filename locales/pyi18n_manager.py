@@ -2,11 +2,11 @@
 """
 基于pyi18n的语言管理器
 """
-import os
 import json
-import time
-from typing import Dict, List, Optional, Callable, Any
+import os
+from collections.abc import Callable
 from dataclasses import dataclass
+
 
 @dataclass
 class LanguageInfo:
@@ -19,35 +19,35 @@ class LanguageInfo:
 
 class PyI18nLocaleManager:
     """基于pyi18n的语言管理器"""
-    
-    def __init__(self, 
+
+    def __init__(self,
                  locale_dir: str = "locales",
                  default_locale: str = "zh_CN",
                  available_locales: tuple = ("zh_CN", "en_US")):
-        
+
         self.locale_dir = locale_dir
         self.default_locale = default_locale
         self.current_locale = default_locale
         self.available_locales = available_locales
-        
+
         # 语言信息映射
-        self.language_info: Dict[str, LanguageInfo] = {}
+        self.language_info: dict[str, LanguageInfo] = {}
         self._init_language_info()
-        
+
         # 回调函数列表
-        self.on_change_callbacks: List[Callable[[str, str], None]] = []
-        
+        self.on_change_callbacks: list[Callable[[str, str], None]] = []
+
         # 创建目录
         os.makedirs(locale_dir, exist_ok=True)
-        
+
         # 检查并创建默认语言文件
         self._ensure_default_locales()
-        
+
         # 初始化pyi18n
         self.i18n = self._init_pyi18n()
-        
+
         print(f"[i18n] 初始化完成，当前语言: {self.current_locale}")
-    
+
     def _init_language_info(self):
         """初始化语言信息"""
         self.language_info = {
@@ -88,7 +88,7 @@ class PyI18nLocaleManager:
                 enabled=False
             )
         }
-    
+
     def _ensure_default_locales(self):
         """确保默认语言文件存在"""
         default_translations = {
@@ -97,18 +97,18 @@ class PyI18nLocaleManager:
             "ja_JP": self._get_ja_jp_translations(),
             "ko_KR": self._get_ko_kr_translations()
         }
-        
+
         for locale_code, translations in default_translations.items():
             filepath = os.path.join(self.locale_dir, f"{locale_code}.json")
             if not os.path.exists(filepath):
                 print(f"[i18n] 创建默认语言文件: {locale_code}")
                 self._save_locale_file(locale_code, translations)
-    
+
     def _init_pyi18n(self):
         """初始化国际化实例（使用内置回退实现）"""
-        print(f"[i18n] 使用内置回退实现")
+        print("[i18n] 使用内置回退实现")
         return self._create_fallback_i18n()
-    
+
     def _create_fallback_i18n(self):
         """创建回退的i18n实现"""
         class FallbackI18n:
@@ -116,26 +116,26 @@ class PyI18nLocaleManager:
                 self.manager = manager
                 self.translations = {}
                 self._load_fallback_translations()
-            
+
             def _load_fallback_translations(self):
                 """加载回退翻译"""
                 for locale_code in self.manager.available_locales:
                     filepath = os.path.join(self.manager.locale_dir, f"{locale_code}.json")
                     if os.path.exists(filepath):
-                        with open(filepath, 'r', encoding='utf-8') as f:
+                        with open(filepath, encoding='utf-8') as f:
                             self.translations[locale_code] = json.load(f)
-            
+
             def gettext(self, locale: str, key: str, **kwargs) -> str:
                 """获取翻译文本"""
                 def _get_translation(locale_code):
                     """内部函数：获取指定语言的翻译"""
                     if locale_code not in self.translations:
                         return None
-                    
+
                     # 支持嵌套键 (如 "app.menu.main")
                     keys = key.split('.')
                     value = self.translations[locale_code]
-                    
+
                     try:
                         for k in keys:
                             if isinstance(value, dict) and k in value:
@@ -146,19 +146,19 @@ class PyI18nLocaleManager:
                     except Exception as e:
                         print(f"[i18n] 翻译键解析失败: {key} ({locale_code}): {e}")
                         return None
-                
+
                 # 首先尝试获取当前语言的翻译
                 value = _get_translation(locale)
-                
+
                 # 如果当前语言没有翻译，尝试默认语言
                 if value is None and locale != self.manager.default_locale:
                     value = _get_translation(self.manager.default_locale)
-                
+
                 # 如果还是没有翻译，返回键本身
                 if value is None:
                     print(f"[i18n] 翻译键未找到: {key} ({locale})")
                     return key
-                
+
                 # 格式化参数
                 if kwargs and isinstance(value, str):
                     try:
@@ -173,20 +173,20 @@ class PyI18nLocaleManager:
                         print(f"[i18n] 翻译格式化失败: {e} ({key}): {value}")
                         return value
                 return str(value)
-        
+
         return FallbackI18n(self)
-    
+
     def _locale_file_exists(self, locale_code: str) -> bool:
         """检查语言文件是否存在"""
         filepath = os.path.join(self.locale_dir, f"{locale_code}.json")
         return os.path.exists(filepath)
-    
-    def _save_locale_file(self, locale_code: str, translations: Dict):
+
+    def _save_locale_file(self, locale_code: str, translations: dict):
         """保存语言文件"""
         filepath = os.path.join(self.locale_dir, f"{locale_code}.json")
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(translations, f, indent=2, ensure_ascii=False)
-    
+
     def t(self, key: str, default: str = None, **kwargs) -> str:
         """翻译文本（主方法）"""
         try:
@@ -194,51 +194,51 @@ class PyI18nLocaleManager:
             # 如果返回的是键本身（未找到翻译），尝试默认语言
             if result == key and self.current_locale != self.default_locale:
                 result = self.i18n.gettext(self.default_locale, key, **kwargs)
-            
+
             # 如果还是未找到，使用默认值
             if result == key and default is not None:
                 result = default
-            
+
             return result
         except Exception as e:
             # 出错时返回默认值或键本身
             print(f"[i18n] 翻译失败 key='{key}': {str(e)}")
             return default if default is not None else key
-    
+
     def translate(self, key: str, default: str = None, **kwargs) -> str:
         """翻译文本（别名）"""
         return self.t(key, default, **kwargs)
-    
+
     def set_locale(self, locale_code: str, notify: bool = True) -> bool:
         """设置当前语言"""
         old_locale = self.current_locale
-        
+
         # 检查语言是否可用
         if not self._is_locale_available(locale_code):
             print(f"[i18n] 语言不可用: {locale_code}")
             return False
-        
+
         # 检查语言文件是否存在
         if not self._locale_file_exists(locale_code):
             print(f"[i18n] 语言文件不存在: {locale_code}")
             return False
-        
+
         # 更新当前语言
         self.current_locale = locale_code
-        
+
         # 通知回调
         if notify and old_locale != locale_code:
             self._notify_locale_change(old_locale, locale_code)
-        
+
         print(f"[i18n] 语言切换: {old_locale} -> {locale_code}")
         return True
-    
+
     def _is_locale_available(self, locale_code: str) -> bool:
         """检查语言是否可用"""
         if locale_code in self.language_info:
             return self.language_info[locale_code].enabled
         return False
-    
+
     def _notify_locale_change(self, old_locale: str, new_locale: str):
         """通知语言变更"""
         for callback in self.on_change_callbacks:
@@ -246,47 +246,47 @@ class PyI18nLocaleManager:
                 callback(old_locale, new_locale)
             except Exception as e:
                 print(f"[i18n] 回调执行失败: {str(e)}")
-    
+
     def register_change_callback(self, callback: Callable[[str, str], None]):
         """注册语言变更回调"""
         self.on_change_callbacks.append(callback)
-    
+
     def unregister_change_callback(self, callback: Callable[[str, str], None]):
         """注销语言变更回调"""
         if callback in self.on_change_callbacks:
             self.on_change_callbacks.remove(callback)
-    
+
     def get_locale(self) -> str:
         """获取当前语言"""
         return self.current_locale
-    
-    def get_available_locales(self) -> List[LanguageInfo]:
+
+    def get_available_locales(self) -> list[LanguageInfo]:
         """获取可用语言列表"""
         return [
-            info for info in self.language_info.values() 
+            info for info in self.language_info.values()
             if info.enabled and self._locale_file_exists(info.code)
         ]
-    
-    def get_enabled_locales(self) -> List[str]:
+
+    def get_enabled_locales(self) -> list[str]:
         """获取启用的语言代码列表"""
         return [info.code for info in self.get_available_locales()]
-    
+
     def reload(self):
         """重新加载语言文件"""
         try:
             # 重新初始化pyi18n
             self.i18n = self._init_pyi18n()
-            print(f"[i18n] 重新加载完成")
+            print("[i18n] 重新加载完成")
         except Exception as e:
             print(f"[i18n] 重新加载失败: {str(e)}")
-    
+
     def get_translation(self, locale_code: str, key: str, **kwargs) -> str:
         """获取指定语言的翻译"""
         try:
             return self.i18n.gettext(locale_code, key, **kwargs)
         except:
             return key
-    
+
     def has_translation(self, key: str, locale_code: str = None) -> bool:
         """检查是否有翻译"""
         check_locale = locale_code or self.current_locale
@@ -295,9 +295,9 @@ class PyI18nLocaleManager:
             return result != key
         except:
             return False
-    
+
     # 默认翻译数据
-    def _get_zh_cn_translations(self) -> Dict:
+    def _get_zh_cn_translations(self) -> dict:
         return {
             "app": {
                 "name": "FastX TUI",
@@ -528,8 +528,8 @@ class PyI18nLocaleManager:
             "size_gb": "{gb:.1f} GB"
         }
         }
-    
-    def _get_en_us_translations(self) -> Dict:
+
+    def _get_en_us_translations(self) -> dict:
         return {
             "app": {
                 "name": "FastX TUI",
@@ -746,8 +746,8 @@ class PyI18nLocaleManager:
                 "size_gb": "{gb:.1f} GB"
             }
         }
-    
-    def _get_ja_jp_translations(self) -> Dict:
+
+    def _get_ja_jp_translations(self) -> dict:
         return {
             "app": {
                 "name": "FastX TUI",
@@ -760,8 +760,8 @@ class PyI18nLocaleManager:
                 "system": "システムツール"
             }
         }
-    
-    def _get_ko_kr_translations(self) -> Dict:
+
+    def _get_ko_kr_translations(self) -> dict:
         return {
             "app": {
                 "name": "FastX TUI",

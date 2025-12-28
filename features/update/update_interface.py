@@ -2,16 +2,15 @@
 """
 更新功能界面模块
 """
-from typing import Dict, Optional, Tuple
+
 from rich import box
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
-from rich.prompt import Prompt, Confirm
 
-from core.update_manager import UpdateManager
 from core.logger import get_logger
+from core.update_manager import UpdateManager
 
 logger = get_logger(__name__)
 
@@ -33,7 +32,7 @@ class UpdateInterface:
         self.console = console
         self.panel_width = 136  # 标准面板宽度
 
-    def check_for_updates(self, force_check: bool = False) -> Tuple[bool, Optional[str]]:
+    def check_for_updates(self, force_check: bool = False) -> tuple[bool, str | None]:
         """
         检查版本更新（UI包装）
 
@@ -256,7 +255,7 @@ class UpdateInterface:
 
         return True
 
-    def _show_version_detail(self, title_panel: Panel, selected_release: Dict) -> bool:
+    def _show_version_detail(self, title_panel: Panel, selected_release: dict) -> bool:
         """
         显示版本详情并处理更新
 

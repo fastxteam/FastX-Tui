@@ -2,161 +2,161 @@
 """
 FastX-Tui 应用管理器
 """
+import asyncio
 import os
 import sys
 import time
-import asyncio
-from typing import Dict, Any, Optional
 
 from rich.console import Console
 
+from core.config_manager import ConfigManager
 from core.logger import get_logger
 from core.menu_system import MenuSystem, MenuType
-from core.operations import SystemOperations, FileOperations, PythonOperations
-from core.plugin_manager import PluginManager
-from core.view_manager import ViewManager, ViewRoute
-from core.update_manager import UpdateManager
 from core.network_tools import NetworkToolsPlugin
-from core.version import FULL_VERSION, VERSION
-from core.config_manager import ConfigManager
+from core.operations import FileOperations, PythonOperations, SystemOperations
+from core.plugin_manager import PluginManager
 from core.task_manager import TaskManager
-from features.search.search_interface import SearchInterface
-from features.help.help_interface import HelpInterface
+from core.update_manager import UpdateManager
+from core.version import FULL_VERSION
+from core.view_manager import ViewManager, ViewRoute
 from features.config.config_interface import ConfigInterface
-from features.plugin.plugin_interface import PluginInterface
+from features.help.help_interface import HelpInterface
 from features.logging.logging_interface import LoggingInterface
-from features.update.update_interface import UpdateInterface
+from features.plugin.plugin_interface import PluginInterface
+from features.search.search_interface import SearchInterface
 from features.task import TaskInterface
+from features.update.update_interface import UpdateInterface
+
 
 class AppManager:
     """应用管理器"""
-    
+
     def __init__(self):
         # 初始化控制台
         self.console = Console()
-        
+
         # 初始化日志
         self.logger = get_logger(self.__class__.__name__)
-        
+
         # 初始化配置管理器
         self.config_manager = ConfigManager()
-        
+
         # 初始化菜单系统
         self.menu_system = MenuSystem(self.console)
-        
+
         # 初始化视图管理器
         self.view_manager = ViewManager(self.console, self.config_manager)
-        
+
         # 获取应用程序所在目录
         app_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-        
+
         # 初始化插件管理器
         plugin_dir = self.config_manager.get_config("plugin_directory", "plugins")
         # 如果插件目录不是绝对路径，则使用应用程序目录作为基础
         if not os.path.isabs(plugin_dir):
             plugin_dir = os.path.join(app_dir, plugin_dir)
-        
+
         self.plugin_manager = PluginManager(
             plugin_dir,
             self.config_manager
         )
-        
+
         # 初始化搜索功能
         self.search_feature = SearchInterface(self.menu_system, self.console, self.config_manager)
-        
+
         # 初始化帮助功能
         self.help_feature = HelpInterface(self.console, self.plugin_manager)
-        
+
         # 初始化配置功能
         self.config_interface = ConfigInterface(self.console, self.config_manager, self.plugin_manager)
-        
+
         # 初始化插件功能
         self.plugin_interface = PluginInterface(self.console, self.plugin_manager, self.menu_system, self.config_manager)
-        
+
         # 初始化日志管理功能
         self.log_manager = LoggingInterface(self.console, self.config_manager)
-        
+
         # 初始化操作类
         self.operations = {
             'system': SystemOperations(),
             'file': FileOperations(),
             'python': PythonOperations()
         }
-        
+
         # 性能监控
         self.start_time = time.time()
         self.command_count = 0
-        
+
         # 版本信息
         self.current_version = FULL_VERSION
-        
+
         # 初始化网络工具插件
         self.network_tools = NetworkToolsPlugin()
         self.network_tools.initialize()
-        
+
         # 初始化更新管理器（核心逻辑）
         self.update_manager = UpdateManager(self.config_manager, self.current_version)
         self.update_manager.set_network_tools(self.network_tools)
-        
+
         # 初始化更新功能界面
         self.update_interface = UpdateInterface(self.update_manager, self.console)
-        
+
         # 将update_manager传递给view_manager
         self.view_manager.set_update_manager(self.update_manager)
-        
+
         # 初始化任务管理器
         self.task_manager = TaskManager()
         # 启动任务管理器
         self.task_manager.start()
-        
+
         # 初始化任务管理界面
         self.task_interface = TaskInterface(self.console, self.task_manager, self.config_manager)
-    
+
     def initialize(self):
         """初始化应用"""
         try:
             # 初始化系统
             self._init_system()
-            
+
             # 注册所有菜单和命令为路由
             self._register_routes()
-            
+
             return True
         except Exception as e:
             self.logger.error(f"应用初始化失败: {str(e)}")
             self.console.print(f"[red]❌ 应用初始化失败: {str(e)}[/red]")
             return False
-    
+
     def _init_system(self):
         """初始化系统"""
         # 先初始化菜单
         self._init_menu()
-        
+
         # 加载插件
         if self.config_manager.get_config("plugin_auto_load", True):
             self.plugin_manager.load_all_plugins()
             self.plugin_manager.register_all_plugins(self.menu_system)
-            
+
             # 重新构建插件菜单，确保所有插件命令都被正确添加
             self._rebuild_plugin_menu()
-            
+
             # 重新初始化HelpInterface，确保插件手册已加载
             self.help_feature = HelpInterface(self.console, self.plugin_manager)
-        
+
         # 应用用户偏好
         self._apply_user_preferences()
-        
+
         # 动态注册所有菜单和命令路由，包括插件生成的
         self._register_dynamic_routes()
-        
+
         # 显示欢迎信息（根据配置决定）
         if self.config_manager.get_config("show_welcome_page", True):
             self._show_welcome_message()
-    
+
     def _init_menu(self):
         """初始化菜单结构"""
-        from core.menu_system import MenuNode, ActionItem, CommandType
-        
+        from core.menu_system import ActionItem, CommandType, MenuNode
+
         # 创建主菜单
         main_menu = MenuNode(
             id="main_menu",
@@ -166,7 +166,7 @@ class AppManager:
             icon="🏠",
             is_system=True  # 系统内置菜单
         )
-        
+
         # 创建平台工具主菜单（整合系统工具、文件工具、Python工具）
         platform_tools_menu = MenuNode(
             id="platform_tools_menu",
@@ -176,7 +176,7 @@ class AppManager:
             icon="🛠️",
             is_system=True  # 系统内置菜单
         )
-        
+
         # 系统工具菜单
         system_menu = MenuNode(
             id="system_tools_menu",
@@ -186,7 +186,7 @@ class AppManager:
             icon="🖥️",
             is_system=True  # 系统内置菜单
         )
-        
+
         # 文件工具菜单
         file_menu = MenuNode(
             id="file_tools_menu",
@@ -196,7 +196,7 @@ class AppManager:
             icon="📁",
             is_system=True  # 系统内置菜单
         )
-        
+
         # Python工具菜单
         python_menu = MenuNode(
             id="python_tools_menu",
@@ -206,14 +206,14 @@ class AppManager:
             icon="🐍",
             is_system=True  # 系统内置菜单
         )
-        
+
         # 注册菜单
         self.menu_system.register_item(main_menu)
         self.menu_system.register_item(platform_tools_menu)
         self.menu_system.register_item(system_menu)
         self.menu_system.register_item(file_menu)
         self.menu_system.register_item(python_menu)
-        
+
         # 系统工具
         system_menu.add_item(ActionItem(
             id="system_info",
@@ -223,7 +223,7 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['system'].get_system_info
         ))
-        
+
         system_menu.add_item(ActionItem(
             id="network_info",
             name="网络信息",
@@ -232,7 +232,7 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['system'].get_network_info
         ))
-        
+
         system_menu.add_item(ActionItem(
             id="process_list",
             name="进程列表",
@@ -241,7 +241,7 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['system'].list_processes
         ))
-        
+
         system_menu.add_item(ActionItem(
             id="disk_space",
             name="磁盘空间",
@@ -250,7 +250,7 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['system'].get_disk_space
         ))
-        
+
         system_menu.add_item(ActionItem(
             id="system_uptime",
             name="系统运行时间",
@@ -259,7 +259,7 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['system'].get_system_uptime
         ))
-        
+
         # 文件工具
         file_menu.add_item(ActionItem(
             id="list_directory",
@@ -269,7 +269,7 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['file'].list_directory
         ))
-        
+
         file_menu.add_item(ActionItem(
             id="file_tree",
             name="文件树",
@@ -278,7 +278,7 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['file'].show_file_tree
         ))
-        
+
         file_menu.add_item(ActionItem(
             id="search_files",
             name="文件搜索",
@@ -287,7 +287,7 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['file'].search_files
         ))
-        
+
         # Python工具
         python_menu.add_item(ActionItem(
             id="python_info",
@@ -297,7 +297,7 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['python'].get_python_info
         ))
-        
+
         python_menu.add_item(ActionItem(
             id="python_packages",
             name="Python包",
@@ -306,7 +306,7 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['python'].list_packages
         ))
-        
+
         python_menu.add_item(ActionItem(
             id="check_imports",
             name="检查导入",
@@ -315,12 +315,12 @@ class AppManager:
             command_type=CommandType.PYTHON,
             python_func=self.operations['python'].check_imports
         ))
-        
+
         # 将系统工具、文件工具、Python工具添加到平台工具菜单
         platform_tools_menu.add_item("system_tools_menu")
         platform_tools_menu.add_item("file_tools_menu")
         platform_tools_menu.add_item("python_tools_menu")
-        
+
         # 创建插件主菜单
         plugins_menu = MenuNode(
             id="plugins_menu",
@@ -330,20 +330,20 @@ class AppManager:
             icon="🔌"
         )
         self.menu_system.register_item(plugins_menu)
-        
+
         # 将平台工具添加到主菜单
         main_menu.add_item("platform_tools_menu")  # 平台工具菜单排在第一位
-        
+
         # 插件菜单将在_rebuild_plugin_menu中根据实际插件命令情况添加
         # 插件可以直接注册菜单到主菜单
-        
+
         # 设置当前菜单
         self.menu_system.current_menu = main_menu
-    
+
     def _register_dynamic_routes(self):
         """动态注册所有菜单和命令为路由，包括插件生成的"""
-        from core.menu_system import MenuNode, MenuItem, ActionItem
-        
+        from core.menu_system import ActionItem, MenuItem, MenuNode
+
         # 动态注册所有菜单节点
         for item_id, item in self.menu_system.items.items():
             if isinstance(item, MenuNode) and item_id not in self.view_manager.routes:
@@ -357,7 +357,7 @@ class AppManager:
                     icon=item.icon if hasattr(item, 'icon') else "📁",
                     type="menu"
                 ))
-        
+
         # 注册所有插件命令路由
         for item_id, item in self.menu_system.items.items():
             if isinstance(item, (MenuItem, ActionItem)) and item_id not in self.view_manager.routes:
@@ -371,11 +371,11 @@ class AppManager:
                     icon=item.icon if hasattr(item, 'icon') else "▶",
                     type="command"
                 ))
-    
+
     def _rebuild_plugin_menu(self):
         """重建插件菜单 - 自动统计所有插件的命令"""
         from core.menu_system import MenuNode
-        
+
         # 获取插件菜单
         plugins_menu = self.menu_system.get_item_by_id("plugins_menu")
         if not isinstance(plugins_menu, MenuNode):
@@ -388,111 +388,111 @@ class AppManager:
                 icon="🔌"
             )
             self.menu_system.register_item(plugins_menu)
-        
+
         # 清空现有插件菜单项
         plugins_menu.items.clear()
-        
+
         # 获取主菜单
         main_menu = self.menu_system.get_item_by_id("main_menu")
         if not isinstance(main_menu, MenuNode):
             return
-        
+
         # 从主菜单中移除插件菜单（如果存在）
         if "plugins_menu" in main_menu.items:
             main_menu.items.remove("plugins_menu")
-        
+
         # 自动统计所有插件命令
         plugin_items_added = False
-        
+
         # 遍历所有已注册的插件命令
-        from core.menu_system import MenuItem, ActionItem
-        
+        from core.menu_system import ActionItem, MenuItem
+
         # 收集要从主菜单移除的插件命令
         commands_to_remove = []
-        
+
         for item_id, item in self.menu_system.items.items():
             # 跳过系统内置项目和菜单
-            if item_id not in ["main_menu", "platform_tools_menu", "system_tools_menu", "file_tools_menu", 
-                              "python_tools_menu", "settings_menu", "show_config", "plugin_manager", 
+            if item_id not in ["main_menu", "platform_tools_menu", "system_tools_menu", "file_tools_menu",
+                              "python_tools_menu", "settings_menu", "show_config", "plugin_manager",
                               "clear_screen", "show_help", "exit_app", "update_app", "plugins_menu"]:
                 # 检查是否是插件生成的命令
                 if isinstance(item, (MenuItem, ActionItem)) and not isinstance(item, MenuNode):
                     # 是插件命令，检查是否直接注册到了主菜单
                     is_in_main_menu = item_id in main_menu.items
-                    
+
                     # 如果是直接注册到主菜单的命令，添加到插件菜单
                     if is_in_main_menu:
                         plugins_menu.add_item(item_id)
                         plugin_items_added = True
                         # 收集要从主菜单移除的命令
                         commands_to_remove.append(item_id)
-        
+
         # 从主菜单中移除插件命令
         for item_id in commands_to_remove:
             if item_id in main_menu.items:
                 main_menu.items.remove(item_id)
-        
+
         # 如果有插件命令，确保插件菜单始终位于主菜单的第二位
         if plugin_items_added:
             # 确保主菜单至少有平台工具菜单
             if "platform_tools_menu" not in main_menu.items:
                 main_menu.add_item("platform_tools_menu")
-            
+
             # 移除插件菜单（如果已存在）
             if "plugins_menu" in main_menu.items:
                 main_menu.items.remove("plugins_menu")
-            
+
             # 插入插件菜单到第二位
             if len(main_menu.items) >= 2:
                 main_menu.items.insert(1, "plugins_menu")
             else:
                 main_menu.items.append("plugins_menu")
-        
+
         # 动态注册所有菜单和命令路由，包括插件生成的
         self._register_dynamic_routes()
-    
+
     def _apply_user_preferences(self):
         """应用用户偏好"""
         from core.menu_system import MenuNode
-        
+
         # 设置默认菜单
         default_menu = self.config_manager.get_preference("preferred_menu", "main_menu")
         menu_item = self.menu_system.get_item_by_id(default_menu)
         if isinstance(menu_item, MenuNode):
             self.menu_system.current_menu = menu_item
-    
+
     def _show_welcome_message(self):
         """显示欢迎信息"""
         self.view_manager.clear_screen()
-        
+
         # 显示横幅
         self.view_manager._render_banner(version=self.current_version)
-        
+
         # 显示版本信息
         self.console.print("\n" + "=" * 70, style="cyan")
         welcome_msg = f"欢迎使用 FastX-Tui {self.current_version}"
         self.console.print(welcome_msg.center(70), style="cyan bold")
         self.console.print("=" * 70 + "\n", style="cyan")
-        
+
         # 显示系统信息
         import platform
         self.console.print(f"💻 系统信息: {platform.system()} {platform.version()}")
         self.console.print(f"🐍 Python: {platform.python_version()}")
-        
+
         self.console.print(f"🔌 插件数量: {len(self.plugin_manager.plugins)}")
-        
+
         # 显示提示
-        self.console.print(f"\n💡 帮助提示:")
-        self.console.print(f"  • 输入 h - 显示帮助信息")
-        self.console.print(f"  • 输入 s - 搜索功能")
-        self.console.print(f"  • 输入 q - 退出程序")
-        
+        self.console.print("\n💡 帮助提示:")
+        self.console.print("  • 输入 h - 显示帮助信息")
+        self.console.print("  • 输入 s - 搜索功能")
+        self.console.print("  • 输入 q - 退出程序")
+
         self.console.print("\n" + "─" * 70, style="dim")
-        
+
         # 等待用户确认后清屏
-        input(f"\n按回车键继续...")
+        input("\n按回车键继续...")
         self.view_manager.clear_screen()
-    
+
     def _register_routes(self):
         """注册所有菜单和命令为路由"""
         # 注册主菜单路由
@@ -505,7 +505,7 @@ class AppManager:
             icon="🏠",
             type="menu"
         ))
-        
+
         # 注册平台工具菜单路由（整合系统工具、文件工具、Python工具）
         self.view_manager.register_route(ViewRoute(
             id="platform_tools_menu",
@@ -516,7 +516,7 @@ class AppManager:
             icon="🛠️",
             type="menu"
         ))
-        
+
         # 注册系统工具菜单路由
         self.view_manager.register_route(ViewRoute(
             id="system_tools_menu",
@@ -527,7 +527,7 @@ class AppManager:
             icon="🖥️",
             type="menu"
         ))
-        
+
         # 注册文件工具菜单路由
         self.view_manager.register_route(ViewRoute(
             id="file_tools_menu",
@@ -538,7 +538,7 @@ class AppManager:
             icon="📁",
             type="menu"
         ))
-        
+
         # 注册Python工具菜单路由
         self.view_manager.register_route(ViewRoute(
             id="python_tools_menu",
@@ -549,7 +549,7 @@ class AppManager:
             icon="🐍",
             type="menu"
         ))
-        
+
         # 注册设置菜单路由
         self.view_manager.register_route(ViewRoute(
             id="settings_menu",
@@ -560,7 +560,7 @@ class AppManager:
             icon="⚙️",
             type="menu"
         ))
-        
+
         # 注册配置功能路由
         self.view_manager.register_route(ViewRoute(
             id="show_config",
@@ -571,7 +571,7 @@ class AppManager:
             icon="⚙️",
             type="command"
         ))
-        
+
         # 注册插件管理路由
         self.view_manager.register_route(ViewRoute(
             id="plugin_manager",
@@ -582,7 +582,7 @@ class AppManager:
             icon="🔌",
             type="command"
         ))
-        
+
         # 注册日志管理路由
         self.view_manager.register_route(ViewRoute(
             id="log_manager",
@@ -593,7 +593,7 @@ class AppManager:
             icon="📊",
             type="command"
         ))
-        
+
         # 注册系统命令路由
         self.view_manager.register_route(ViewRoute(
             id="system_info",
@@ -604,7 +604,7 @@ class AppManager:
             icon="📊",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="network_info",
             name="网络信息",
@@ -614,7 +614,7 @@ class AppManager:
             icon="🌐",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="process_list",
             name="进程列表",
@@ -624,7 +624,7 @@ class AppManager:
             icon="📋",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="disk_space",
             name="磁盘空间",
@@ -634,7 +634,7 @@ class AppManager:
             icon="💾",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="system_uptime",
             name="系统运行时间",
@@ -644,7 +644,7 @@ class AppManager:
             icon="⏰",
             type="command"
         ))
-        
+
         # 注册文件命令路由
         self.view_manager.register_route(ViewRoute(
             id="list_directory",
@@ -655,7 +655,7 @@ class AppManager:
             icon="📄",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="file_tree",
             name="文件树",
@@ -665,7 +665,7 @@ class AppManager:
             icon="🌳",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="search_files",
             name="文件搜索",
@@ -675,7 +675,7 @@ class AppManager:
             icon="🔍",
             type="command"
         ))
-        
+
         # 注册Python命令路由
         self.view_manager.register_route(ViewRoute(
             id="python_info",
@@ -686,7 +686,7 @@ class AppManager:
             icon="🐍",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="python_packages",
             name="Python包",
@@ -696,7 +696,7 @@ class AppManager:
             icon="📦",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="check_imports",
             name="检查导入",
@@ -706,7 +706,7 @@ class AppManager:
             icon="🔍",
             type="command"
         ))
-        
+
         # 注册固定功能路由
         self.view_manager.register_route(ViewRoute(
             id="clear_screen",
@@ -717,7 +717,7 @@ class AppManager:
             icon="🧹",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="show_help",
             name="帮助",
@@ -727,7 +727,7 @@ class AppManager:
             icon="❓",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="update_app",
             name="检查更新",
@@ -737,7 +737,7 @@ class AppManager:
             icon="🔄",
             type="command"
         ))
-        
+
         self.view_manager.register_route(ViewRoute(
             id="exit_app",
             name="退出",
@@ -747,7 +747,7 @@ class AppManager:
             icon="🚪",
             type="command"
         ))
-        
+
         # 注册插件菜单路由
         self.view_manager.register_route(ViewRoute(
             id="plugins_menu",
@@ -758,132 +758,132 @@ class AppManager:
             icon="🔌",
             type="menu"
         ))
-    
+
     def _render_menu(self, *args, **kwargs):
         """渲染当前菜单"""
         if not self.menu_system.current_menu:
             self.menu_system.navigate_to_menu("main_menu")
-        
+
         # 使用视图管理器渲染菜单，并传递menu_system参数
         self.view_manager.render_menu(self.menu_system.current_menu, self.menu_system)
-    
+
     def show_config_interface(self):
         """显示配置界面"""
         self.config_interface.show_config_interface()
-    
+
     def show_plugin_interface(self):
         """显示插件管理界面"""
         self.plugin_interface.show_plugin_interface()
-    
+
     def show_log_interface(self):
         """显示日志管理界面"""
         self.log_manager.show_log_interface()
-    
+
     def show_task_interface(self):
         """显示任务管理界面"""
         self.task_interface.show_task_list()
-    
+
     def show_help(self, *args, **kwargs):
         """显示帮助信息"""
         self.help_feature.show_help()
-    
+
     def update_app(self):
         """检查并更新应用到最新版本"""
         # 使用更新功能界面处理更新逻辑
         self.update_interface.handle_update_command()
-    
+
     def handle_exit(self):
         """处理退出"""
         # 这个方法将在后续移到features/exit模块中
         self.cleanup()
         import sys
-        self.console.print(f"\n[green]感谢使用 FastX-Tui[/green]\n")
+        self.console.print("\n[green]感谢使用 FastX-Tui[/green]\n")
         sys.exit(0)
-    
+
     def _show_hints(self):
         """显示快捷键提示"""
         # 此方法已过时，快捷栏和状态栏现在由ViewManager统一渲染
         pass
-    
+
     def _get_user_choice(self) -> str:
         """获取用户选择"""
         from rich.prompt import Prompt
-        
+
         display_items = self.menu_system.current_menu.get_display_items(self.menu_system)
-        
+
         # 构建可用选项
         available_choices = [str(i) for i in range(1, len(display_items) + 1)]
-        
+
         # 添加快捷键
         shortcut_choices = ['c', 'h', 'u', 's', 'l', 'q', 'm', 'p', 't']
-        
+
         # 根据当前菜单类型添加返回/退出选项
         from core.menu_system import MenuType
         if self.menu_system.current_menu.menu_type != MenuType.MAIN:
             shortcut_choices.append('0')  # 0表示返回上级
-        
+
         # 添加0到可用选择
         if '0' in shortcut_choices:
             available_choices.append('0')
-        
+
         choice = Prompt.ask(
-            f"\n[bold cyan]请选择[/bold cyan]",
+            "\n[bold cyan]请选择[/bold cyan]",
             choices=available_choices + shortcut_choices,
             show_choices=False
         ).lower()
-        
+
         return choice
-    
+
     def _process_choice(self, choice: str):
         """处理用户选择"""
         # 处理快捷键
         if choice == 'q':
             self.handle_exit()
             return
-        
+
         elif choice == 'b':
             # 按b键直接返回主菜单
             self.view_manager.clear_screen()
             self.menu_system.navigate_to_menu("main_menu")
             return
-        
+
         elif choice == 'h':
             self.show_help()
             return
-        
+
         elif choice == 'c':
             self.view_manager.clear_screen()
             return
-        
+
         elif choice == 'u':
             # 检查更新
             self.view_manager.clear_screen()
             self.update_app()
             return
-        
+
         elif choice == 's':
             self.search_feature.show_search_interface()
             return
-        
+
         elif choice == 'l':
             self.show_log_interface()
             return
-        
+
         elif choice == 'm':
             # F1：配置管理
             self.show_config_interface()
             return
-        
+
         elif choice == 'p':
             # F2：插件管理
             self.show_plugin_interface()
             return
-        
+
         elif choice == 't':
             # 显示任务列表
             self.show_task_interface()
             return
-        
+
         elif choice == '0':
             # 统一处理返回逻辑
             from core.menu_system import MenuType
@@ -899,59 +899,60 @@ class AppManager:
                 # 在主菜单时，0表示退出
                 self.handle_exit()
             return
-        
+
         # 处理数字选择
         try:
             idx = int(choice) - 1
             display_items = self.menu_system.current_menu.get_display_items(self.menu_system)
-            
+
             if 0 <= idx < len(display_items):
                 selected_item = display_items[idx]
                 self._handle_selected_item(selected_item)
             else:
-                self.console.print(f"[red]❌ 无效的选择[/red]")
-                input(f"\n按回车键继续...")
+                self.console.print("[red]❌ 无效的选择[/red]")
+                input("\n按回车键继续...")
         except ValueError:
-            self.console.print(f"[red]❌ 无效的输入[/red]")
-            input(f"\n按回车键继续...")
-    
+            self.console.print("[red]❌ 无效的输入[/red]")
+            input("\n按回车键继续...")
+
     def _handle_selected_item(self, item):
         """处理选中的项目"""
-        from core.menu_system import MenuNode, ActionItem
-        
+        from core.menu_system import ActionItem, MenuNode
+
         if isinstance(item, MenuNode):
             # 切换菜单前清屏
             self.view_manager.clear_screen()
             # 导航到菜单
             self.menu_system.navigate_to_menu(item.id)
-            
+
         elif isinstance(item, ActionItem):
             # 特殊命令处理
             if item.id == "clear_screen":
                 self.view_manager.clear_screen()
                 return
-            
+
             if item.id == "show_help":
                 self.show_help()
                 return
-            
+
             if item.id == "exit_app":
                 self.handle_exit()
                 return
-            
+
             # 添加到最近使用
             self.config_manager.add_recently_used(item.id)
-            
+
             # 清屏准备执行
             self.view_manager.clear_screen()
-            
+
             # 显示执行信息
+            from rich.box import ROUNDED, SIMPLE
             from rich.panel import Panel
             from rich.table import Table
             from rich.text import Text
-            from rich.box import DOUBLE,SIMPLE,ROUNDED
+
             from core.menu_system import CommandType
-            
+
             # 创建执行信息Table
             exec_table = Table(
                 box=SIMPLE,
@@ -966,9 +967,9 @@ class AppManager:
             exec_table.add_row("命令描述:", Text(item.description, style="bold"))
             if item.command_type == CommandType.SHELL and item.command:
                 exec_table.add_row("命令:", Text(item.command, style="cyan"))
-            
+
             exec_table.add_row("命令状态:", Text("已添加到任务队列", style="yellow bold"))
-            
+
             # 创建执行信息Panel
             exec_panel = Panel(
                 exec_table,
@@ -978,15 +979,15 @@ class AppManager:
                 box=ROUNDED,
                 padding=(1, 2)
             )
-            
+
             self.console.print(exec_panel)
-            
+
             # 执行命令 - 根据配置决定同步或异步执行
             self.command_count += 1
-            
+
             # 检查是否启用异步执行
-            use_async = self.config_manager.get_config("use_async_tasks", True)
-            
+            use_async = self.config_manager.get_config("use_async_tasks", False)
+
             if use_async:
                 # 异步方式 - 添加到任务队列
                 if item.command_type == CommandType.PYTHON and item.python_func:
@@ -1007,14 +1008,14 @@ class AppManager:
                         command_type="shell",
                         command=item.command
                     )
-                
+
                 # 显示任务添加成功信息
                 self.console.print(f"\n[green]✅ 命令已成功添加到任务队列，任务ID: {task_id}[/green]")
                 self.console.print("[yellow]💡 提示: 输入 T 查看任务列表[/yellow]")
             else:
                 # 同步方式 - 直接执行
                 output = self.menu_system.execute_action(item)
-                
+
                 # 显示结果
                 # 创建结果Panel
                 result_panel = Panel(
@@ -1025,9 +1026,9 @@ class AppManager:
                     box=ROUNDED,
                     padding=(1, 2)
                 )
-                
+
                 self.console.print(result_panel)
-            
+
             # 创建返回提示Panel
             return_panel = Panel(
                 Text("按回车键继续...", style="yellow bold"),
@@ -1037,25 +1038,25 @@ class AppManager:
                 expand=False,
                 width=40
             )
-            
+
             self.console.print("\n")
             self.console.print(return_panel, justify="center")
             input()
             # 清屏准备返回菜单
             self.view_manager.clear_screen()
-    
+
     def _display_interface(self):
         """显示完整界面"""
         # 清屏
         if self.config_manager.get_config("auto_clear_screen", True):
             self.view_manager.clear_screen()
-        
+
         # 获取当前菜单的路由ID
         current_menu_id = self.menu_system.current_menu.id if self.menu_system.current_menu else "main_menu"
-        
+
         # 获取当前路由
         current_route = self.view_manager.get_route_by_id(current_menu_id)
-        
+
         # 使用ViewManager统一渲染布局
         if current_route:
             # 更新当前视图ID
@@ -1070,41 +1071,41 @@ class AppManager:
             if self.config_manager.get_config("show_banner", True):
                 banner_style = self.config_manager.get_config("banner_style", "default")
                 self.view_manager._render_banner(version=self.current_version, banner_style=banner_style)
-            
+
             # 渲染更新提示
             self.view_manager._render_update_prompt(self.update_manager)
-            
+
             # 显示当前菜单
             self._render_menu()
-            
+
             # 显示提示
             if self.config_manager.get_config("show_hints", True):
                 self._show_hints()
-    
+
     def start_main_loop(self):
         """启动应用主循环"""
         try:
             # 进入主循环前先清屏，确保欢迎界面内容被完全清理
             self.view_manager.clear_screen()
-            
+
             # 使用异步事件循环运行主循环
             asyncio.run(self._async_main_loop())
         except KeyboardInterrupt:
             self.handle_exit()
-    
+
     async def _async_main_loop(self):
         """异步主循环"""
         while True:
             try:
                 # 显示界面
                 self._display_interface()
-                
+
                 # 获取用户选择
                 choice = self._get_user_choice()
-                
+
                 # 处理选择
                 self._process_choice(choice)
-                
+
                 # 让出控制权，允许异步任务执行
                 await asyncio.sleep(0.1)
             except KeyboardInterrupt:
@@ -1113,23 +1114,23 @@ class AppManager:
             except Exception as e:
                 self.logger.error(f"主循环错误: {str(e)}")
                 self.console.print(f"[red]❌ 主循环错误: {str(e)}[/red]")
-                input(f"\n按回车键继续...")
-    
+                input("\n按回车键继续...")
 
-    
+
+
     def cleanup(self):
         """清理资源"""
         # 保存配置
         self.config_manager.save_config()
-        
+
         # 清理插件
         self.plugin_manager.cleanup_all()
-        
+
         # 记录退出日志
         self.logger.info("应用程序正常退出")
-        
+
         # 显示运行统计
         import time
         uptime = time.time() - self.start_time
         self.console.print(f"\n[yellow]运行时间: {int(uptime)} 秒, 执行命令: {self.command_count} 个[/yellow]")
-        self.console.print(f"[yellow]配置已保存[/yellow]")
+        self.console.print("[yellow]配置已保存[/yellow]")

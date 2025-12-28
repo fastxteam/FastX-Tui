@@ -2,24 +2,20 @@
 """
 FastX-Tui 帮助功能界面模块 - 修复版
 """
-from typing import Dict, Any
-import sys
 import struct
-from rich.console import Console
-from rich.panel import Panel
-from rich.table import Table
-from rich.tree import Tree
-from rich.layout import Layout
-from rich.text import Text
-from rich.syntax import Syntax
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn, TimeRemainingColumn
-from rich.columns import Columns
-from rich.console import Group
-from rich.prompt import Prompt, Confirm, IntPrompt
+import sys
+
 from rich import box
-from rich.style import Style
-from rich.box import ROUNDED, HEAVY
+from rich.box import HEAVY, ROUNDED
+from rich.columns import Columns
+from rich.console import Console, Group
+from rich.layout import Layout
 from rich.live import Live
+from rich.panel import Panel
+from rich.syntax import Syntax
+from rich.table import Table
+from rich.text import Text
+from rich.tree import Tree
 
 # 平台兼容：根据操作系统选择不同的键盘输入处理方式
 if sys.platform == 'win32':
@@ -36,7 +32,7 @@ class HelpInterface:
         self.console = console
         self.plugin_manager = plugin_manager
         self.current_page = "basic"  # 当前页面
-        
+
         # 基础章节
         self.sections = {
             "basic": {"name": "基本信息", "icon": ""},
@@ -46,19 +42,19 @@ class HelpInterface:
             "plug": {"name": "插件开发", "icon": ""},
             "plapi": {"name": "插件API", "icon": ""}
         }
-        
+
         # 插件手册章节（动态添加）
         self.plugin_sections = {}
         if plugin_manager:
             self._load_plugin_manuals()
-        
+
         # 合并所有章节
         self.all_sections = {**self.sections, **self.plugin_sections}
-        
+
         self.running = True
         self.showing_plugin_manual = False
         self.current_plugin = None
-        
+
         # 导航位置记录
         self.current_section_index = 0
         self.section_keys = list(self.all_sections.keys())
@@ -70,12 +66,12 @@ class HelpInterface:
             return FULL_VERSION
         except ImportError:
             return "v0.1.0"
-    
+
     def _load_plugin_manuals(self):
         """加载所有插件的手册"""
         if not self.plugin_manager:
             return
-        
+
         # 直接使用已加载的插件
         for plugin_name in self.plugin_manager.loaded_plugins:
             # 获取插件实例
@@ -84,10 +80,10 @@ class HelpInterface:
                 # 获取插件信息
                 plugin_info = plugin.get_info()
                 display_name = plugin_info.name
-                
+
                 # 创建插件手册章节ID，使用plugin_前缀
                 section_id = f"plugin_{plugin_name.lower().replace('-', '_')}"
-                
+
                 # 添加到插件章节字典
                 self.plugin_sections[section_id] = {
                     "name": f"插件手册 - {display_name}",
@@ -117,7 +113,7 @@ class HelpInterface:
 
     def update_header(self) -> Panel:
         """创建头部Panel"""
-        title = f"FastX-Tui 帮助系统"
+        title = "FastX-Tui 帮助系统"
         section_name = self.all_sections[self.current_page]["name"]
 
         return Panel(
@@ -142,7 +138,7 @@ class HelpInterface:
                 nav_text += f"  {shortcut} - {name}\n"
 
         # 添加退出选项
-        nav_text += f"  q - 退出\n"
+        nav_text += "  q - 退出\n"
 
         return Panel(
             nav_text.strip(),
@@ -171,18 +167,18 @@ class HelpInterface:
             # 插件手册章节
             plugin_section = self.plugin_sections[self.current_page]
             plugin_name = plugin_section["plugin_name"]
-            
+
             # 获取插件实例
             plugin = self.plugin_manager.get_plugin(plugin_name)
             if plugin:
                 try:
                     # 获取插件手册
                     manual_content = plugin.get_manual()
-                    
+
                     # 使用Markdown渲染
                     from rich.markdown import Markdown
                     markdown = Markdown(manual_content)
-                    
+
                     return Panel(
                         markdown,
                         border_style="cyan",
@@ -204,7 +200,7 @@ class HelpInterface:
                     box=ROUNDED,
                     title="插件手册"
                 )
-        
+
         return Panel("未知页面", border_style="red")
 
     def update_footer(self) -> Panel:
@@ -250,7 +246,7 @@ class HelpInterface:
                 return struct.unpack('hh', fcntl.ioctl(0, termios.TIOCGWINSZ, '1234'))
             except:
                 return 80, 24
-    
+
     def _getch(self) -> str:
         """获取单个按键输入，兼容Windows和Unix系统"""
         if sys.platform == 'win32':
@@ -296,42 +292,42 @@ class HelpInterface:
                 return ch
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    
+
     def _render_content_to_lines(self, content) -> list:
         """将内容渲染为行列表"""
         # 创建一个临时控制台用于渲染
         temp_console = Console(width=self.console.width, color_system="truecolor")
-        
+
         # 渲染内容到字符串
         with temp_console.capture() as capture:
             temp_console.print(content)
-        
+
         rendered = capture.get()
         return rendered.strip().split('\n')
-    
+
     def _calculate_content_height(self) -> int:
         """计算内容区域可用高度"""
         # 获取终端总高度
         _, total_height = self._get_terminal_size()
-        
+
         # 减去header和footer的高度
         # header: 3 lines, footer: 3 lines, borders: 2 lines
         available_height = total_height - 3 - 3 - 2
         return max(available_height, 10)  # 确保至少有10行可用
-    
+
     def _get_content_panel_with_pagination(self, original_panel, current_page: int, total_pages: int) -> Panel:
         """为Panel添加分页信息"""
         # 获取原始内容
         original_content = original_panel.renderable
-        
+
         # 创建页码信息
         from rich.text import Text
         page_info = Text(f"\n[dim]页码: {current_page}/{total_pages} - 使用左右键翻页[/dim]")
-        
+
         # 组合内容
         from rich.console import Group
         new_content = Group(original_content, page_info)
-        
+
         # 返回新的Panel
         return Panel(
             new_content,
@@ -341,7 +337,7 @@ class HelpInterface:
             box=original_panel.box,
             padding=original_panel.padding
         )
-    
+
     def _calculate_total_pages(self, content) -> int:
         """计算内容的总页数"""
         # 对于长内容，估算页数
@@ -356,11 +352,11 @@ class HelpInterface:
         else:
             # 其他类型，默认1页
             return 1
-        
+
         page_height = self._calculate_content_height()
         total_pages = (line_count + page_height - 1) // page_height
         return max(total_pages, 1)
-    
+
     def _get_content_for_page(self, content, page_num: int) -> any:
         """获取指定页面的内容"""
         # 这里暂时返回原始内容，后续可以实现更复杂的分页逻辑
@@ -815,7 +811,7 @@ class HelpInterface:
             "\n",  # 添加空行分隔
             info_table,
             "\n",
-            f"""[bold]使用说明：[/bold]
+            """[bold]使用说明：[/bold]
 1. 继承 [cyan]Plugin[/cyan] 基类
 2. 实现所有必需方法
 3. 在 [cyan]register()[/cyan] 中添加菜单项

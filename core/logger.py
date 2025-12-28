@@ -2,21 +2,22 @@
 """
 统一日志管理模块
 """
-import sys
 import os
-from typing import Optional
+import sys
+
 from loguru import logger
+
 
 class Logger:
     """统一日志管理器"""
-    
+
     def __init__(self, name: str = "fastx-tui", log_level: str = "INFO"):
         self.name = name
         self.log_level = log_level.upper()
-        
+
         # 清除默认处理器
         logger.remove()
-        
+
         # 添加控制台处理器
         logger.add(
             sys.stdout,
@@ -24,7 +25,7 @@ class Logger:
             format="{time:YYYY-MM-DD HH:mm:ss} [{level}] [{name}] {message}",
             enqueue=True  # 异步日志
         )
-        
+
         # 获取EXE所在目录或项目根目录
         if getattr(sys, 'frozen', False):
             # 打包后的EXE环境
@@ -32,12 +33,12 @@ class Logger:
         else:
             # 开发环境，获取项目根目录（假设core目录在项目根目录下）
             app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        
+
         # 创建日志目录
         log_dir = os.path.join(app_dir, "logs")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
-        
+
         # 添加文件处理器
         logger.add(
             os.path.join(log_dir, "fastx-tui.log"),
@@ -48,10 +49,10 @@ class Logger:
             retention="7 days",  # 保留7天日志
             compression="zip"  # 压缩旧日志
         )
-        
+
         # 配置loguru的上下文
         self.logger = logger.bind(name=self.name)
-    
+
     def set_log_level(self, level: str):
         """设置日志级别"""
         self.log_level = level.upper()
@@ -62,7 +63,7 @@ class Logger:
             format="{time:YYYY-MM-DD HH:mm:ss} [{level}] [{name}] {message}",
             enqueue=True
         )
-        
+
         # 获取EXE所在目录或项目根目录
         if getattr(sys, 'frozen', False):
             # 打包后的EXE环境
@@ -70,12 +71,12 @@ class Logger:
         else:
             # 开发环境，获取项目根目录（假设core目录在项目根目录下）
             app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        
+
         # 添加文件处理器
         log_dir = os.path.join(app_dir, "logs")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
-        
+
         logger.add(
             os.path.join(log_dir, "fastx-tui.log"),
             level="DEBUG",  # 文件日志记录所有级别
@@ -85,10 +86,10 @@ class Logger:
             retention="7 days",
             compression="zip"
         )
-        
+
         self.logger = logger.bind(name=self.name)
-    
-    def get_logger(self, name: Optional[str] = None):
+
+    def get_logger(self, name: str | None = None):
         """获取日志器实例
         
         Args:
@@ -100,31 +101,31 @@ class Logger:
         if name:
             return logger.bind(name=f"{self.name}.{name}")
         return self.logger
-    
+
     def debug(self, msg: str, *args, **kwargs):
         """调试日志"""
         self.logger.debug(msg, *args, **kwargs)
-    
+
     def info(self, msg: str, *args, **kwargs):
         """信息日志"""
         self.logger.info(msg, *args, **kwargs)
-    
+
     def warning(self, msg: str, *args, **kwargs):
         """警告日志"""
         self.logger.warning(msg, *args, **kwargs)
-    
+
     def error(self, msg: str, *args, **kwargs):
         """错误日志"""
         self.logger.error(msg, *args, **kwargs)
-    
+
     def critical(self, msg: str, *args, **kwargs):
         """严重错误日志"""
         self.logger.critical(msg, *args, **kwargs)
-    
+
     def get_current_level(self) -> str:
         """获取当前日志级别"""
         return self.log_level
-    
+
     def get_available_levels(self) -> list:
         """获取可用的日志级别"""
         return ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -133,7 +134,7 @@ class Logger:
 global_logger = Logger()
 
 # 便捷方法
-def get_logger(name: Optional[str] = None):
+def get_logger(name: str | None = None):
     """获取日志器"""
     return global_logger.get_logger(name)
 

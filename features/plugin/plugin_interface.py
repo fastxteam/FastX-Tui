@@ -4,17 +4,17 @@ FastX-Tui 插件管理界面模块
 """
 import os
 import sys
-from typing import Optional
+
 from rich import box
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
-from core.plugin_manager import PluginManager, PluginRepository
-from core.menu_system import MenuSystem, MenuNode
 from core.config_manager import ConfigManager
+from core.menu_system import MenuNode, MenuSystem
+from core.plugin_manager import PluginManager, PluginRepository
 
 
 class PluginInterface:
@@ -546,16 +546,16 @@ class PluginInterface:
             # 保留系统内置项
             if getattr(item, 'is_system', False):
                 continue
-            
+
             # 保留插件主菜单
             if isinstance(item, MenuNode) and item_id.endswith('_menu'):
                 plugin_name = item_id.replace('_menu', '')
                 if plugin_name in self.plugin_manager.all_plugins:
                     continue
-            
+
             # 其他项都移除
             items_to_remove.append(item_id)
-        
+
         # 从菜单系统中移除所有非系统菜单项和非插件主菜单
         for item_id in items_to_remove:
             self.menu_system.remove_item(item_id)
@@ -576,7 +576,7 @@ class PluginInterface:
 
     def _rebuild_plugin_menu(self):
         """重建插件菜单，与AppManager保持一致的逻辑"""
-        from core.menu_system import MenuNode, MenuType, MenuItem, ActionItem
+        from core.menu_system import ActionItem, MenuItem, MenuNode
 
         # 获取主菜单
         main_menu = self.menu_system.get_item_by_id("main_menu")
@@ -601,7 +601,7 @@ class PluginInterface:
             # 跳过系统内置项目和菜单
             if getattr(item, 'is_system', False):
                 continue
-                
+
             # 检查是否是插件生成的命令或菜单
             if isinstance(item, (MenuItem, ActionItem, MenuNode)):
                 if isinstance(item, MenuNode):

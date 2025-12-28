@@ -2,13 +2,14 @@
 """
 菜单系统核心模块 - 专注于菜单管理和命令执行
 """
-import os
-import time
 import subprocess
 import sys
-from typing import Dict, List, Optional, Callable, Any, Union
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any, Optional, Union
+
 from rich.console import Console
 
 
@@ -40,10 +41,10 @@ class MenuItem:
 class ActionItem(MenuItem):
     """可执行的动作项"""
     command_type: CommandType = CommandType.SHELL
-    command: Optional[str] = None
-    python_func: Optional[Callable] = None
-    args: List[Any] = field(default_factory=list)
-    kwargs: Dict[str, Any] = field(default_factory=dict)
+    command: str | None = None
+    python_func: Callable | None = None
+    args: list[Any] = field(default_factory=list)
+    kwargs: dict[str, Any] = field(default_factory=dict)
     requires_confirmation: bool = False
     timeout: int = 30
 
@@ -81,8 +82,8 @@ class ActionItem(MenuItem):
 class MenuNode(MenuItem):
     """菜单节点"""
     menu_type: MenuType = MenuType.SUB
-    parent_id: Optional[str] = None
-    items: List[Union[str, MenuItem, 'MenuNode']] = field(default_factory=list)
+    parent_id: str | None = None
+    items: list[Union[str, MenuItem, 'MenuNode']] = field(default_factory=list)
     icon: str = "📁"
 
     def add_item(self, item: Union[str, MenuItem, 'MenuNode']):
@@ -104,7 +105,7 @@ class MenuNode(MenuItem):
                         return
             # 如果不存在，添加
             self.items.append(item)
-    
+
     def remove_item(self, item: Union[str, MenuItem, 'MenuNode']):
         """移除菜单项"""
         if isinstance(item, str):
@@ -124,11 +125,11 @@ class MenuNode(MenuItem):
                         self.items.pop(i)
                         return
 
-    def get_display_items(self, menu_system: Optional['MenuSystem'] = None) -> List[MenuItem]:
+    def get_display_items(self, menu_system: Optional['MenuSystem'] = None) -> list[MenuItem]:
         """获取显示的项目列表，确保菜单在前，命令在后"""
         menus = []
         commands = []
-        
+
         for item in self.items:
             if isinstance(item, str):
                 # 如果是字符串ID，需要从menu_system中获取实际项目
@@ -144,19 +145,19 @@ class MenuNode(MenuItem):
                     menus.append(item)
                 else:
                     commands.append(item)
-        
+
         # 菜单在前，命令在后
         return menus + commands
 
 
 class MenuSystem:
     """菜单系统管理类"""
-    
+
     def __init__(self, console: Console):
         self.console = console
-        self.current_menu: Optional[MenuNode] = None
-        self.menu_history: List[MenuNode] = []
-        self.items: Dict[str, Union[MenuItem, MenuNode]] = {}
+        self.current_menu: MenuNode | None = None
+        self.menu_history: list[MenuNode] = []
+        self.items: dict[str, MenuItem | MenuNode] = {}
         self.start_time = time.time()
 
         # 图标映射（使用等宽友好的图标）
@@ -215,14 +216,14 @@ class MenuSystem:
             is_system=True  # 系统内置项
         ))
 
-    def register_item(self, item: Union[MenuItem, MenuNode]):
+    def register_item(self, item: MenuItem | MenuNode):
         """注册菜单项
         
         注意：每个插件只能注册一个主菜单（MenuType.MAIN）。
         """
         self.items[item.id] = item
         return item
-    
+
     def create_main_menu(self, menu_id: str, name: str, description: str = "", icon: str = "🏠", is_system: bool = False) -> MenuNode:
         """创建主菜单
         
@@ -249,7 +250,7 @@ class MenuSystem:
         self.register_item(main_menu)
         return main_menu
 
-    def get_item_by_id(self, item_id: str) -> Optional[Union[MenuItem, MenuNode]]:
+    def get_item_by_id(self, item_id: str) -> MenuItem | MenuNode | None:
         """根据ID获取菜单项"""
         return self.items.get(item_id)
 
@@ -296,17 +297,17 @@ class MenuSystem:
     def create_submenu(self, menu_id: str, name: str, description: str = "", icon: str = "📁", is_system: bool = False) -> MenuNode:
         """创建子菜单"""
         submenu = MenuNode(
-            id=menu_id, 
-            name=name, 
-            description=description, 
-            menu_type=MenuType.SUB, 
+            id=menu_id,
+            name=name,
+            description=description,
+            menu_type=MenuType.SUB,
             icon=icon,
             is_system=is_system
         )
         self.register_item(submenu)
         return submenu
 
-    def add_item_to_menu(self, menu_id: str, item: Union[str, MenuItem, MenuNode]) -> bool:
+    def add_item_to_menu(self, menu_id: str, item: str | MenuItem | MenuNode) -> bool:
         """将菜单项添加到指定菜单"""
         menu = self.get_item_by_id(menu_id)
         if isinstance(menu, MenuNode):
@@ -314,54 +315,54 @@ class MenuSystem:
             return True
         return False
 
-    def add_item_to_main_menu(self, item: Union[str, MenuItem, MenuNode]) -> bool:
+    def add_item_to_main_menu(self, item: str | MenuItem | MenuNode) -> bool:
         """将菜单项添加到主菜单"""
         main_menu = self.get_item_by_id("main_menu")
         if isinstance(main_menu, MenuNode):
             main_menu.add_item(item)
             return True
         return False
-    
-    def remove_item_from_main_menu(self, item: Union[str, MenuItem, MenuNode]) -> bool:
+
+    def remove_item_from_main_menu(self, item: str | MenuItem | MenuNode) -> bool:
         """从主菜单移除菜单项"""
         main_menu = self.get_item_by_id("main_menu")
         if isinstance(main_menu, MenuNode):
             main_menu.remove_item(item)
             return True
         return False
-    
+
     def remove_item(self, item_id: str) -> bool:
         """从菜单系统中移除菜单项"""
         if item_id in self.items:
             del self.items[item_id]
             return True
         return False
-    
-    def remove_item_from_menu(self, menu_id: str, item: Union[str, MenuItem, MenuNode]) -> bool:
+
+    def remove_item_from_menu(self, menu_id: str, item: str | MenuItem | MenuNode) -> bool:
         """从指定菜单移除菜单项"""
         menu = self.get_item_by_id(menu_id)
         if isinstance(menu, MenuNode):
             menu.remove_item(item)
             return True
         return False
-    
+
     def add_action(self, action: ActionItem):
         """添加动作项到菜单系统，用于插件注册"""
         # 注册动作项
         self.register_item(action)
-        
+
         # 检查是否需要创建插件分类菜单
         category = action.category
-        
+
         # 尝试获取主菜单
         main_menu = self.get_item_by_id("main_menu")
         if not isinstance(main_menu, MenuNode):
             return
-        
+
         # 检查是否已存在该分类的菜单
         category_menu_id = f"menu_{category.lower().replace(' ', '_')}"
         category_menu = self.get_item_by_id(category_menu_id)
-        
+
         if not isinstance(category_menu, MenuNode):
             # 创建分类菜单
             category_menu = self.create_submenu(
@@ -372,6 +373,6 @@ class MenuSystem:
             )
             # 将分类菜单添加到主菜单
             self.add_item_to_main_menu(category_menu_id)
-        
+
         # 将动作项添加到分类菜单
         self.add_item_to_menu(category_menu_id, action.id)

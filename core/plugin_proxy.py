@@ -3,19 +3,18 @@
 插件代理模块
 用于处理插件与主程序之间的通信，确保它们可以安全地通信，同时保持环境隔离
 """
-import os
-import sys
 import json
-import subprocess
-from typing import Any, Dict, Optional
+from typing import Any
+
 from .logger import get_logger
+
 
 class PluginProxy:
     """插件代理类
     
     用于处理插件与主程序之间的通信，确保它们可以安全地通信，同时保持环境隔离
     """
-    
+
     def __init__(self, plugin_name: str, venv_manager, plugin_path: str):
         """初始化插件代理
         
@@ -28,8 +27,8 @@ class PluginProxy:
         self.venv_manager = venv_manager
         self.plugin_path = plugin_path
         self.logger = get_logger(f"PluginProxy.{plugin_name}")
-    
-    def call_plugin_method(self, method_name: str, *args, **kwargs) -> Optional[Any]:
+
+    def call_plugin_method(self, method_name: str, *args, **kwargs) -> Any | None:
         """调用插件方法
         
         Args:
@@ -87,14 +86,14 @@ except Exception as e:
     print(json.dumps({'error': str(e)}))
     sys.exit(1)
 """
-            
+
             # 执行调用脚本
             result = self.venv_manager.run_in_venv(
                 self.plugin_name,
                 [call_script],
                 self.plugin_path
             )
-            
+
             if result and result['returncode'] == 0:
                 # 解析结果
                 output = result['stdout'].strip()
@@ -111,19 +110,19 @@ except Exception as e:
             else:
                 self.logger.error(f"调用插件 {self.plugin_name} 方法 {method_name} 失败: {result['stderr'] if result else 'Unknown error'}")
                 return None
-        
+
         except Exception as e:
             self.logger.error(f"调用插件 {self.plugin_name} 方法 {method_name} 时发生错误: {str(e)}")
             return None
-    
-    def get_plugin_info(self) -> Optional[Dict[str, Any]]:
+
+    def get_plugin_info(self) -> dict[str, Any] | None:
         """获取插件信息
         
         Returns:
             Optional[Dict[str, Any]]: 插件信息
         """
         return self.call_plugin_method('get_info')
-    
+
     def initialize_plugin(self) -> bool:
         """初始化插件
         
@@ -132,7 +131,7 @@ except Exception as e:
         """
         result = self.call_plugin_method('initialize')
         return result is not None
-    
+
     def cleanup_plugin(self) -> bool:
         """清理插件资源
         
@@ -141,7 +140,7 @@ except Exception as e:
         """
         result = self.call_plugin_method('cleanup')
         return result is not None
-    
+
     def register_plugin(self, menu_system) -> bool:
         """注册插件到菜单系统
         
@@ -155,8 +154,8 @@ except Exception as e:
         # 由于涉及到对象传递，可能需要使用更高级的序列化机制
         self.logger.warning(f"插件 {self.plugin_name} 注册到菜单系统的功能需要进一步实现")
         return True
-    
-    def execute_command(self, command: str, *args, **kwargs) -> Optional[Any]:
+
+    def execute_command(self, command: str, *args, **kwargs) -> Any | None:
         """执行插件命令
         
         Args:
@@ -214,14 +213,14 @@ except Exception as e:
     print(json.dumps({'error': str(e)}))
     sys.exit(1)
 """
-            
+
             # 执行命令
             result = self.venv_manager.run_in_venv(
                 self.plugin_name,
                 [execute_script],
                 self.plugin_path
             )
-            
+
             if result and result['returncode'] == 0:
                 # 解析结果
                 output = result['stdout'].strip()
@@ -238,7 +237,7 @@ except Exception as e:
             else:
                 self.logger.error(f"执行插件 {self.plugin_name} 命令 {command} 失败: {result['stderr'] if result else 'Unknown error'}")
                 return None
-        
+
         except Exception as e:
             self.logger.error(f"执行插件 {self.plugin_name} 命令 {command} 时发生错误: {str(e)}")
             return None

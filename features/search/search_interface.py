@@ -3,14 +3,14 @@
 搜索功能模块
 提供菜单项的搜索、历史记录管理功能
 """
-from typing import List, Dict, Optional
 from rich import box
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.prompt import Confirm
+from rich.table import Table
 from rich.text import Text
-from rich.prompt import Prompt, Confirm
-from core.menu_system import MenuSystem, MenuItem, MenuNode
+
+from core.menu_system import MenuItem, MenuNode, MenuSystem
 
 
 class SearchInterface:
@@ -41,12 +41,12 @@ class SearchInterface:
         if self.config_manager:
             self.search_history = self.config_manager.get_search_history()
         else:
-            self.search_history: List[str] = []  # 本地历史记录
+            self.search_history: list[str] = []  # 本地历史记录
 
     def search_items(self, keyword: str,
                      search_name: bool = True,
                      search_description: bool = True,
-                     search_category: bool = False) -> List[MenuItem]:
+                     search_category: bool = False) -> list[MenuItem]:
         """搜索菜单项
 
         Args:
@@ -186,7 +186,7 @@ class SearchInterface:
         else:
             self._show_search_no_results(keyword)
 
-    def _display_search_results(self, results: List[MenuItem], keyword: str):
+    def _display_search_results(self, results: list[MenuItem], keyword: str):
         """显示搜索结果
 
         Args:
@@ -463,8 +463,9 @@ class SearchInterface:
         Note:
             这是修改后的核心逻辑，移除了确认面板和等待输入
         """
-        from core.menu_system import MenuNode, ActionItem
         import time  # 用于短暂延迟显示信息
+
+        from core.menu_system import MenuNode
 
         self.console.clear()
 
@@ -482,11 +483,11 @@ class SearchInterface:
         # 2. 显示简要跳转信息（不等待确认）
         if isinstance(item, MenuNode):
             # 菜单项跳转信息
-            info_text = Text(f"正在导航到菜单: ", style="cyan") + \
+            info_text = Text("正在导航到菜单: ", style="cyan") + \
                         Text(item.name, style="bold white")
         else:
             # 命令项执行信息
-            info_text = Text(f"正在执行命令: ", style="cyan") + \
+            info_text = Text("正在执行命令: ", style="cyan") + \
                         Text(item.name, style="bold white")
 
         info_panel = Panel(
@@ -728,7 +729,7 @@ class SearchInterface:
         import time
         time.sleep(0.5)
 
-    def quick_search(self, keyword: str) -> Optional[MenuItem]:
+    def quick_search(self, keyword: str) -> MenuItem | None:
         """快速搜索（返回第一个匹配项）
 
         Args:

@@ -41,6 +41,7 @@ class AppConfigSchema(BaseModel):
     enable_analytics: bool = Field(default=False, description="是否启用分析")
     show_welcome_page: bool = Field(default=True, description="是否显示欢迎页面")
     auto_check_updates: bool = Field(default=True, description="是否自动检查版本更新")
+    use_async_tasks: bool = Field(default=False, description="是否使用异步任务")
 
     @field_validator('language')
     @classmethod

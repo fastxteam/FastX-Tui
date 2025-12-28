@@ -3,23 +3,17 @@
 FastX-Tui 日志管理功能模块
 """
 import os
-import sys
 import re
-from typing import List, Dict, Optional
+import sys
+
 from rich import box
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
-from rich.layout import Layout
-from rich.columns import Columns
 
-from core.logger import (
-    set_log_level,
-    get_current_log_level,
-    get_available_log_levels
-)
 from core.config_manager import ConfigManager
+from core.logger import get_available_log_levels, get_current_log_level, set_log_level
 
 
 class LoggingInterface:
@@ -378,11 +372,11 @@ class LoggingInterface:
             elif choice == '0':
                 break
 
-    def _read_logs(self) -> List[Dict[str, str]]:
+    def _read_logs(self) -> list[dict[str, str]]:
         """读取日志文件"""
         logs = []
         try:
-            with open(self.log_file, 'r', encoding='utf-8') as f:
+            with open(self.log_file, encoding='utf-8') as f:
                 for line in f:
                     log_entry = self._parse_log_line(line.strip())
                     if log_entry:
@@ -402,7 +396,7 @@ class LoggingInterface:
         # 按时间倒序排列，最新的日志在前
         return filtered_logs[::-1]
 
-    def _parse_log_line(self, line: str) -> Optional[Dict[str, str]]:
+    def _parse_log_line(self, line: str) -> dict[str, str] | None:
         """解析日志行"""
         # 日志格式：2025-12-20 14:30:45 [INFO] [FastX] This is a log message
         pattern = r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[(\w+)\] \[(.*?)\] (.*)'
@@ -416,7 +410,7 @@ class LoggingInterface:
             }
         return None
 
-    def _display_logs(self, logs: List[Dict[str, str]]):
+    def _display_logs(self, logs: list[dict[str, str]]):
         """显示日志记录"""
         # 计算列宽 - 使用更大的宽度
         time_width = 20

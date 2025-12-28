@@ -3,10 +3,11 @@
 版本管理模块，统一管理项目版本号
 """
 
-from typing import Dict, Any
-import toml
-import os
 import importlib.metadata
+import os
+from typing import Any
+
+import toml
 
 # 项目根目录
 get_root_dir = lambda: os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -18,22 +19,22 @@ def get_version() -> str:
     """
     # 尝试从pyproject.toml获取
     pyproject_path = os.path.join(get_root_dir(), 'pyproject.toml')
-    
+
     try:
-        with open(pyproject_path, 'r', encoding='utf-8') as f:
+        with open(pyproject_path, encoding='utf-8') as f:
             data = toml.load(f)
         return data['project']['version']
-    except Exception as e:
+    except Exception:
         # pyproject.toml不存在或读取失败，尝试从包元数据获取
         try:
             # 从已安装的包元数据获取版本
             return importlib.metadata.version('fastx-tui')
-        except Exception as e2:
+        except Exception:
             # 所有方式都失败，返回默认值（这个值会被bump工作流自动更新）
             return "0.1.0"
 
 
-def get_version_info() -> Dict[str, Any]:
+def get_version_info() -> dict[str, Any]:
     """获取完整的版本信息"""
     return {
         "version": get_version(),
