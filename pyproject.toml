@@ -4,28 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fastx-tui"
-version = "0.1.54"
+version = "0.1.55"
 description = "FastX TUI - 统一视图架构版本"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [ 
-    "loguru>=0.7.3", 
-    "psutil>=5.9.0", 
-    "pyyaml>=6.0", 
-    "rich>=13.0.0", 
-    "setuptools>=80.9.0", 
-    "requests>=2.31.0", 
-    "toml>=0.10.2", 
-    "cookiecutter>=2.6.0", 
-    "pydantic>=2.0.0", 
-    "pydantic-settings>=2.0.0", 
-    "typer>=0.20.1", 
-    "validators>=0.35.0", 
-    "pyinstaller>=6.17.0", 
-    "prompt-toolkit>=3.0.52", 
-    "mkdocs>=1.5.0", 
-    "mkdocs-material>=9.5.0"
-]
+dependencies = [ "loguru>=0.7.3", "psutil>=5.9.0", "pyyaml>=6.0", "rich>=13.0.0", "setuptools>=80.9.0", "requests>=2.31.0", "toml>=0.10.2", "cookiecutter>=2.6.0", "pydantic>=2.0.0", "pydantic-settings>=2.0.0", "typer>=0.20.1", "validators>=0.35.0", "pyinstaller>=6.17.0", "prompt-toolkit>=3.0.52", "mkdocs>=1.5.0", "mkdocs-material>=9.5.0",]
 
 [project.scripts]
 fastx-tui = "main:main"
