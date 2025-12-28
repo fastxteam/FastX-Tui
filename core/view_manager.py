@@ -336,27 +336,6 @@ class ViewManager:
         else:
             version_info = f"🏷️: {version}"
         
-        # 构建面包屑/路由 - 格式：主菜单 > 子菜单
-        # 确保面包屑始终以主菜单开头
-        breadcrumb = []
-        
-        # 始终将主菜单添加到面包屑开头
-        main_menu = self.routes.get("main_menu")
-        if main_menu:
-            breadcrumb.append(main_menu.name)
-        
-        # 如果当前视图不是主菜单，添加当前视图路径
-        if self.current_view_id and self.current_view_id != "main_menu":
-            # 从视图栈和当前视图构建完整路径
-            full_path = self.view_stack + [self.current_view_id]
-            for route_id in full_path:
-                route = self.routes.get(route_id)
-                if route and route.id != "main_menu":  # 避免重复添加主菜单
-                    breadcrumb.append(route.name)
-        
-        # 构建面包屑字符串
-        breadcrumb_str = " > ".join(breadcrumb)
-        
         # 获取当前日志等级
         current_log_level = get_current_log_level()
         
@@ -371,20 +350,17 @@ class ViewManager:
         log_level_icon = log_level_icons.get(current_log_level, "📝")
         
         # 构建状态栏右侧内容 - 格式：图标：运行s | 指令统计图标：n | 日志等级图标：xx | 版本图标：vx.x.x ⚡
-        # 使用固定宽度与菜单宽度对齐
-        menu_width = self.PAGE_WIDTH
-        
         # 右侧状态信息
         runtime_str = f"⏱️: {int(hours):02d}:{int(minutes):02d}:{int(seconds):02d}"
         commands_str = f"💻: {self.command_count}"
         log_str = f"{log_level_icon}: {current_log_level}"
         version_str = version_info
+
+        # 构建状态内容
+        status_content = f"{runtime_str} | {commands_str} | {log_str} | {version_str}"
         
-        # 构建右侧内容
-        right_content = f"{runtime_str} | {commands_str} | {log_str} | {version_str}"
-        
-        # 左侧面包屑 + 右侧状态信息，总宽度PAGE_WIDTH
-        status_content = f"{breadcrumb_str}".ljust(menu_width - len(right_content) - 1) + right_content
+        # 计算需要居中的宽度
+        status_content = f"{' ' * (len('─' * self.PAGE_WIDTH) - len(status_content) + int(self.PAGE_WIDTH*0.12))}{status_content}"
         
         # 渲染状态栏 - 添加分隔线和特效
         self.console.print("─" * self.PAGE_WIDTH, style="bold white")
@@ -500,7 +476,6 @@ class ViewManager:
             self.console.print("[yellow]此菜单当前没有可用的项目[/yellow]\n")
             return
         
-        # 显示菜单标题、描述和面包屑
         # 创建表格显示菜单项
         table = Table(
             box=box.SIMPLE,
@@ -532,10 +507,35 @@ class ViewManager:
                 style=style
             )
         
-        # 实现Panel内部包裹菜单Table的格局
+        # 构建面包屑 - 最多显示4层关系
+        breadcrumb = []
+        
+        # 始终将主菜单添加到面包屑开头
+        main_menu = self.routes.get("main_menu")
+        if main_menu:
+            breadcrumb.append(main_menu.name)
+        
+        # 如果当前视图不是主菜单，添加当前视图路径
+        if self.current_view_id and self.current_view_id != "main_menu":
+            # 从视图栈和当前视图构建完整路径
+            full_path = self.view_stack + [self.current_view_id]
+            for route_id in full_path:
+                route = self.routes.get(route_id)
+                if route and route.id != "main_menu":  # 避免重复添加主菜单
+                    breadcrumb.append(route.name)
+        
+        # 限制最多显示4层关系
+        if len(breadcrumb) > 4:
+            # 显示主菜单 + ... + 最后两层
+            breadcrumb = [breadcrumb[0], "..."] + breadcrumb[-2:]
+        
+        # 构建面包屑字符串
+        breadcrumb_str = " > ".join(breadcrumb)
+        
+        # 实现Panel内部包裹菜单Table的格局，标题显示面包屑
         self.console.print(Panel(
             table,
-            title=f"[bold]{menu_node.name}[/bold]",
+            title=f"[bold]{breadcrumb_str}[/bold]",
             title_align= "left",
             subtitle=f"> {menu_node.description}",
             subtitle_align="center",
